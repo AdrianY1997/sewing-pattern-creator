@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 import path from 'node:path'
 
-/** Reference screenshots, only when SCREENSHOT_DIR is set (SCREENSHOT_DIR=â€¦ npm run test:e2e). */
+/** Reference screenshots, only when SCREENSHOT_DIR is set (SCREENSHOT_DIR=… npm run test:e2e). */
 const dir = process.env.SCREENSHOT_DIR ?? ''
 
 test.skip(!dir, 'set SCREENSHOT_DIR to capture screenshots')
@@ -39,6 +39,8 @@ test('F4a: separated pieces, with and without nested sizes', async ({ page }) =>
   await expect(page.getByTestId('canvas-viewport')).toHaveAttribute('data-view', 'pieces')
   await page.mouse.move(700, 900)
   await page.screenshot({ path: path.join(dir, 'f4a-pieces.png') })
+  // The Capas panel starts folded in the Piezas view: unfold it to reach "Tallas".
+  await page.locator('.layers-head[aria-expanded="false"]').click()
   await page.getByRole('checkbox', { name: 'Tallas' }).check()
   await expect(page.getByTestId('layer-sizes')).toHaveCount(1)
   await page.screenshot({ path: path.join(dir, 'f4a-pieces-sizes.png') })
@@ -58,13 +60,13 @@ test('F4b: skirt and trousers separated, with seam allowance and notches', async
       .click({ timeout: 500 })
       .catch(() => undefined)
     // A notch added by clicking on the outline of the back piece (centre back, half way).
-    await page.getByRole('button', { name: 'AÃ±adir piquete' }).click()
+    await page.getByRole('button', { name: 'Añadir piquete' }).click()
     const outline = await page
       .locator('[data-testid="piece-outline"][data-piece="back"]')
       .boundingBox()
     if (!outline) throw new Error('no back piece')
     await page.mouse.click(outline.x + 1, outline.y + outline.height * 0.3)
-    // The notch selects the back piece: its MÃ¡rgenes / Marcas show in the right panel.
+    // The notch selects the back piece: its Márgenes / Marcas show in the right panel.
     await page.getByRole('button', { name: 'Seleccionar', exact: true }).click()
     await expect(page.getByTestId('allowance-section')).toBeVisible()
     await page.mouse.move(700, 1000)
@@ -77,7 +79,7 @@ test.describe('narrow', () => {
   test('F2b: drawers at 1000 px', async ({ page }) => {
     await page.goto('./')
     await page.getByRole('button', { name: 'Panel de detalles' }).click()
-    await expect(page.getByRole('complementary', { name: 'Detalles del patrÃ³n' })).toBeVisible()
+    await expect(page.getByRole('complementary', { name: 'Detalles del patrón' })).toBeVisible()
     await page.screenshot({ path: path.join(dir, 'f2b-narrow.png') })
   })
 })

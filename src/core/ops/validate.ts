@@ -45,6 +45,20 @@ const isLineAnchor = (v: unknown): boolean => {
 const isHandles = (v: unknown): boolean =>
   typeof v === 'object' && v !== null && isVec((v as Rec).c1) && isVec((v as Rec).c2)
 
+/** 1–MAX_REPLACEMENT_BEZIERS chord-frame cubics `{ c1, c2, to }`. */
+const isChordBeziers = (v: unknown): boolean =>
+  Array.isArray(v) &&
+  v.length > 0 &&
+  v.length <= MAX_REPLACEMENT_BEZIERS &&
+  v.every(
+    (b: unknown) =>
+      typeof b === 'object' &&
+      b !== null &&
+      isVec((b as Rec).c1) &&
+      isVec((b as Rec).c2) &&
+      isVec((b as Rec).to),
+  )
+
 const isAxis = (v: unknown): boolean =>
   v === 'vertical' ||
   v === 'horizontal' ||
@@ -119,20 +133,13 @@ const VALIDATORS: { readonly [T in OperationType]: (o: Rec) => boolean } = {
     (o.kind === 'line' || o.kind === 'curve') &&
     opt(o.handles, isHandles),
   splitPiece: (o) => isStr(o.pieceId) && isStr(o.lineId),
-  replaceSegmentCurve: (o) =>
+  replaceSegmentCurve: (o) => isStr(o.pieceId) && isStr(o.segmentId) && isChordBeziers(o.beziers),
+  replaceSegmentChain: (o) =>
     isStr(o.pieceId) &&
-    isStr(o.segmentId) &&
-    Array.isArray(o.beziers) &&
-    o.beziers.length > 0 &&
-    o.beziers.length <= MAX_REPLACEMENT_BEZIERS &&
-    o.beziers.every(
-      (b: unknown) =>
-        typeof b === 'object' &&
-        b !== null &&
-        isVec((b as Rec).c1) &&
-        isVec((b as Rec).c2) &&
-        isVec((b as Rec).to),
-    ),
+    isPointRef(o.from) &&
+    isPointRef(o.to) &&
+    isChordBeziers(o.beziers) &&
+    opt(o.direction, (v) => v === 'forward' || v === 'backward'),
 }
 
 /** Why a stored value is not a well-formed operation, or null when it is. */

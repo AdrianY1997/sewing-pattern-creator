@@ -32,7 +32,7 @@ import {
   setCurveHandles,
   splitPieceSegment,
 } from './edit'
-import { replaceSegmentCurve } from './curves'
+import { replaceSegmentChain, replaceSegmentCurve } from './curves'
 import { addInternalLine, splitPiece } from './lines'
 import { KEY_SEP, bboxCentre, pieceWorldBBox, piecesWorldBBox } from './pattern'
 import {
@@ -698,6 +698,8 @@ function applyOne(
       return splitPieceOp(ctx, pieces, op)
     case 'replaceSegmentCurve':
       return editPiece(pieces, op.pieceId, (p) => replaceSegmentCurve(p, op))
+    case 'replaceSegmentChain':
+      return editPiece(pieces, op.pieceId, (p) => replaceSegmentChain(p, op))
     default:
       return fail(`Operación desconocida "${String((op as { type?: unknown }).type)}"`)
   }

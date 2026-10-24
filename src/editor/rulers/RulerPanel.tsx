@@ -1,4 +1,4 @@
-import { FlipHorizontal2, Magnet, Spline } from 'lucide-react'
+import { FlipHorizontal2, Magnet, Spline, WandSparkles } from 'lucide-react'
 import {
   RULER_IDS,
   TRACE_DEVIATION_WARN_MM,
@@ -20,7 +20,10 @@ export interface RulerPanelProps {
   readonly pointCount: number
   readonly trace: RulerTrace | null
   readonly message: string | null
+  /** Result of "Ajuste automático" (see RulerState.autoFit). */
+  readonly autoFit: { readonly deviation: number | null } | null
   readonly onApply: () => void
+  readonly onAutoAlign: () => void
 }
 
 const HINT: Record<RulerMode, (n: number) => string> = {
@@ -37,7 +40,9 @@ export function RulerPanel({
   pointCount,
   trace,
   message,
+  autoFit,
   onApply,
+  onAutoAlign,
 }: RulerPanelProps) {
   const setRuler = useRulerStore((s) => s.setRuler)
   const setMode = useRulerStore((s) => s.setMode)
@@ -92,6 +97,24 @@ export function RulerPanel({
       >
         <Spline size={14} aria-hidden /> Trazar
       </button>
+      {mode === 'trace' && pointCount === 2 && (
+        <button
+          type="button"
+          className="btn btn-small"
+          data-testid="ruler-auto-align"
+          title="Ajuste automático: coloca la regla (posición, giro, volteo) donde sigue mejor la curva actual entre los dos puntos"
+          onClick={onAutoAlign}
+        >
+          <WandSparkles size={14} aria-hidden /> Ajuste automático
+        </button>
+      )}
+      {autoFit && (
+        <span className="ruler-fit-info" data-testid="ruler-fit-info">
+          {autoFit.deviation === null
+            ? 'Ajuste: la regla pasa por los dos puntos'
+            : 'Ajuste: ' + autoFit.deviation.toFixed(1) + ' mm máx. de la curva actual'}
+        </span>
+      )}
       {trace ? (
         <span
           className={trace.warn ? 'ruler-trace-info is-warn' : 'ruler-trace-info'}

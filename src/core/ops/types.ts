@@ -377,6 +377,26 @@ export interface ReplaceSegmentCurveOp extends OpBase {
   readonly beziers: readonly ChordBezier[]
 }
 
+/**
+ * Replaces the contiguous run of outline edges between two outline vertices `from` and `to` by one
+ * traced curve (F5b, "Trazar" across several edges). The run is the shorter way round the outline
+ * (by arc length) unless `direction` says which way: 'forward' follows the outline's traversal
+ * order from `from`, 'backward' runs against it. `beziers` are in the chord frame of from → to (see
+ * ChordBezier), so the curve keeps its shape between the vertices of every size. The new edges are
+ * `${firstId}~c1`…`${firstId}~cN` (firstId = the first replaced edge from `from`) joined at the
+ * points `${firstId}~cp1`…; their role is the replaced edges' common role (else the first one's),
+ * their seam allowance the common value (else the first one's); notches and anchored marks keep
+ * their place by arc-length ratio along the run.
+ */
+export interface ReplaceSegmentChainOp extends OpBase {
+  readonly type: 'replaceSegmentChain'
+  readonly pieceId: string
+  readonly from: PointRef
+  readonly to: PointRef
+  readonly beziers: readonly ChordBezier[]
+  readonly direction?: 'forward' | 'backward'
+}
+
 export type Operation =
   | ExtractPieceOp
   | ExtractAllOp
@@ -406,6 +426,7 @@ export type Operation =
   | AddInternalLineOp
   | SplitPieceOp
   | ReplaceSegmentCurveOp
+  | ReplaceSegmentChainOp
 
 export type OperationType = Operation['type']
 

@@ -28,8 +28,16 @@ export interface RulerState {
   readonly tracePoints: readonly TracePoint[]
   /** Message of the last trace that could not be applied. */
   readonly message: string | null
+  /**
+   * Result of the last "Ajuste automático" while the ruler has not moved since: the max deviation
+   * (mm) of the trace from the existing curve, null when there was no curve between the points.
+   */
+  readonly autoFit: { readonly deviation: number | null } | null
   setRuler(id: RulerId): void
+  /** Moves the ruler (clears autoFit). */
   setPose(id: RulerId, pose: RulerPose): void
+  /** The pose found by "Ajuste automático" and its deviation. */
+  setAutoFit(id: RulerId, pose: RulerPose, deviation: number | null): void
   setMode(mode: RulerMode): void
   addTracePoint(p: TracePoint): void
   clearTrace(): void
@@ -79,19 +87,24 @@ export const useRulerStore = create<RulerState>()((set, get) => ({
   mode: 'place',
   tracePoints: [],
   message: null,
+  autoFit: null,
   setRuler: (rulerId) => {
-    set({ rulerId, tracePoints: [], message: null })
+    set({ rulerId, tracePoints: [], message: null, autoFit: null })
     save(get())
   },
   setPose: (id, pose) => {
-    set({ poses: { ...get().poses, [id]: pose } })
+    set({ poses: { ...get().poses, [id]: pose }, autoFit: null })
     save(get())
   },
-  setMode: (mode) => set({ mode, tracePoints: [], message: null }),
+  setAutoFit: (id, pose, deviation) => {
+    set({ poses: { ...get().poses, [id]: pose }, autoFit: { deviation }, message: null })
+    save(get())
+  },
+  setMode: (mode) => set({ mode, tracePoints: [], message: null, autoFit: null }),
   addTracePoint: (p) => {
     const pts = get().tracePoints
-    set({ tracePoints: pts.length >= 2 ? [p] : [...pts, p], message: null })
+    set({ tracePoints: pts.length >= 2 ? [p] : [...pts, p], message: null, autoFit: null })
   },
-  clearTrace: () => set({ tracePoints: [], message: null }),
+  clearTrace: () => set({ tracePoints: [], message: null, autoFit: null }),
   setMessage: (message) => set({ message }),
 }))

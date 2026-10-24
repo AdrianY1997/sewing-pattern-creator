@@ -166,6 +166,11 @@
   color: var(--text-muted);
 }
 
+.ruler-fit-info {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
 /* "Reglas" menu in the tool bar. */
 .tool-menu {
   display: flex;

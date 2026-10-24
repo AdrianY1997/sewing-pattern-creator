@@ -37,6 +37,8 @@ import {
   orientedOutline,
   reattachMarks,
   segOf,
+  SPLIT_SUFFIXES,
+  VERTEX_TOL,
   vertexIndexAt,
 } from './edit'
 import { fail } from './errors'
@@ -131,37 +133,113 @@ export interface SplitPieceDefaults {
 }
 
 /**
- * splitPiece: cut `piece` along internal line `lineId` (outline to outline) into `${id}~a` (the
- * outline from the line's start forward to its end, closed by the line) and `${id}~b` (the rest).
- * Marks, darts, points and internal lines go to the piece they lie in; notches follow their edge;
- * the piece without the grainline gets a copy of it at its centre. The cut is an edge of both
- * pieces (same segment id, role 'seam', default allowance). `~b` moves `gapMm` away from `~a`.
+ * The internal line `lineId` as a chain of segments in order (a traced line made of several cubics,
+ * `${id}~1`…`${id}~N`): `lineId` is one of the segments, or the base id of such a chain. The chain
+ * grows through the internal lines that continue it end to end (exactly one at each join), until
+ * its ends reach the outline.
+ */
+export function internalLineChain(piece: PatternPiece, lineId: unknown): OutlineRef[] {
+  if (typeof lineId !== 'string' || !lineId) return fail('Falta la línea')
+  const grain = grainSegmentIds(piece)
+  const legs = dartLegIds(piece)
+  const isLine = (x: string) => piece.internalLines.includes(x) && !!piece.segments[x]
+  const start = isLine(lineId)
+    ? lineId
+    : isLine(`${lineId}${SPLIT_SUFFIXES[0]}`)
+      ? `${lineId}${SPLIT_SUFFIXES[0]}`
+      : piece.segments[lineId]
+        ? fail(`"${lineId}" no es una línea interna de la pieza`)
+        : fail(`El segmento "${lineId}" no existe en la pieza "${piece.id}"`)
+  if (grain.has(start)) fail('El hilo no puede separar la pieza')
+  if (legs.has(start)) fail('Una pierna de pinza no puede separar la pieza')
+  const ends = (x: string) => {
+    const g = stripMeta(piece.segments[x])
+    return [g.p0, segEnd(g)] as const
+  }
+  const free = piece.internalLines.filter(
+    (x) => !grain.has(x) && !legs.has(x) && !!piece.segments[x],
+  )
+  const onOutline = (q: Vec) => nearestOnOutline(piece, q).distance <= SPLIT_REACH_MM
+  const chain: OutlineRef[] = [{ segment: start, reversed: false }]
+  const used = new Set([start])
+  /** The one unused line with an end at `q`, oriented away from it (null when none or several). */
+  const next = (q: Vec): OutlineRef | null => {
+    const hits = free.flatMap((x) => {
+      if (used.has(x)) return []
+      const [a, b] = ends(x)
+      if (distance(a, q) <= VERTEX_TOL) return [{ segment: x, reversed: false }]
+      if (distance(b, q) <= VERTEX_TOL) return [{ segment: x, reversed: true }]
+      return []
+    })
+    return hits.length === 1 ? hits[0] : null
+  }
+  const head = () => {
+    const r = chain[0]
+    return ends(r.segment)[r.reversed ? 1 : 0]
+  }
+  const tail = () => {
+    const r = chain[chain.length - 1]
+    return ends(r.segment)[r.reversed ? 0 : 1]
+  }
+  for (let q = tail(); !onOutline(q); q = tail()) {
+    const r = next(q)
+    if (!r) break
+    chain.push(r)
+    used.add(r.segment)
+  }
+  for (let q = head(); !onOutline(q); q = head()) {
+    const r = next(q)
+    if (!r) break
+    // Prepended: it runs towards q.
+    chain.unshift({ segment: r.segment, reversed: !r.reversed })
+    used.add(r.segment)
+  }
+  return chain
+}
+
+const reverseRefs = (refs: readonly OutlineRef[]): OutlineRef[] =>
+  [...refs].reverse().map((r) => ({ segment: r.segment, reversed: !r.reversed }))
+
+/**
+ * splitPiece: cut `piece` along internal line `lineId` (outline to outline; one segment, or a
+ * traced chain of them, see internalLineChain) into `${id}~a` (the outline from the line's start
+ * forward to its end, closed by the line) and `${id}~b` (the rest). The line's ends may lie on an
+ * outline edge or on a vertex. Marks, darts, points and internal lines go to the piece they lie in;
+ * notches follow their edge; the piece without the grainline gets a copy of it at its centre. The
+ * cut is an edge of both pieces (same segment ids, role 'seam', default allowance). `~b` moves
+ * `gapMm` away from `~a`.
  */
 export function splitPiece(
   piece: PatternPiece,
   lineId: unknown,
   d: SplitPieceDefaults,
 ): [PatternPiece, PatternPiece] {
-  const cutSeg = segOf(piece, lineId)
-  const id = cutSeg.id
-  if (!piece.internalLines.includes(id)) fail(`"${id}" no es una línea interna de la pieza`)
-  if (grainSegmentIds(piece).has(id)) fail('El hilo no puede separar la pieza')
-  if (dartLegIds(piece).has(id)) fail('Una pierna de pinza no puede separar la pieza')
+  const cut = internalLineChain(piece, lineId)
+  const id = typeof lineId === 'string' ? lineId : ''
+  const cutIds = new Set(cut.map((r) => r.segment))
   // Snap both ends onto the outline and make them vertices.
   let p = piece
-  const plain = stripMeta(cutSeg)
   const ends: Vec[] = []
-  for (const [end, at] of [
-    ['start', plain.p0],
-    ['end', segEnd(plain)],
+  const first = cut[0]
+  const last = cut[cut.length - 1]
+  for (const [ref, atStart] of [
+    [first, true],
+    [last, false],
   ] as const) {
+    // The stored end of the segment that is the chain's start (or end).
+    const end: 'start' | 'end' = atStart === !ref.reversed ? 'start' : 'end'
+    const g = stripMeta(p.segments[ref.segment])
+    const at = end === 'start' ? g.p0 : segEnd(g)
     const hit = nearestOnOutline(p, at)
     if (hit.distance > SPLIT_REACH_MM)
       fail(`La línea "${id}" no llega al contorno (${hit.distance.toFixed(1)} mm)`)
     p = ensureVertex(p, hit.at, `El extremo de "${id}"`)
     const k = vertexIndexAt(p, hit.at, 0.05)
     const v = orientedOutline(p, k).p0
-    p = { ...p, segments: { ...p.segments, [id]: moveSegmentEnd(p.segments[id], end, v) } }
+    p = {
+      ...p,
+      segments: { ...p.segments, [ref.segment]: moveSegmentEnd(p.segments[ref.segment], end, v) },
+    }
     ends.push(v)
   }
   const i1 = vertexIndexAt(p, ends[0])
@@ -174,10 +252,12 @@ export function splitPiece(
     return out
   }
   const outlines: [OutlineRef[], OutlineRef[]] = [
-    [...runOf(i1, i2), { segment: id, reversed: true }],
-    [...runOf(i2, i1), { segment: id, reversed: false }],
+    [...runOf(i1, i2), ...reverseRefs(cut)],
+    [...runOf(i2, i1), ...cut],
   ]
-  const cutSegment: DraftSegment = { ...p.segments[id], role: 'seam' }
+  const cutSegments: Record<string, DraftSegment> = Object.fromEntries(
+    cut.map((r) => [r.segment, { ...p.segments[r.segment], role: 'seam' } as DraftSegment]),
+  )
   const grainIds = grainSegmentIds(p)
   const grainMark = p.marks.find(
     (m) => m.kind === 'grainline' && grainIds.has(m.data?.segment as string),
@@ -199,13 +279,13 @@ export function splitPiece(
     })
     const dartLegs = new Set(darts.flatMap((dt) => [...dt.legs, ...(dt.legs2 ?? [])]))
     const internalLines = p.internalLines.filter((l) => {
-      if (l === id || grainIds.has(l)) return false
+      if (cutIds.has(l) || grainIds.has(l)) return false
       if (legs.has(l)) return dartLegs.has(l)
       const s = p.segments[l]
       return inside(segmentAt(s, segmentLength(stripMeta(s)) / 2).point)
     })
-    const segments: Record<string, DraftSegment> = { [id]: cutSegment }
-    for (const r of outline) if (r.segment !== id) segments[r.segment] = p.segments[r.segment]
+    const segments: Record<string, DraftSegment> = { ...cutSegments }
+    for (const r of outline) if (!cutIds.has(r.segment)) segments[r.segment] = p.segments[r.segment]
     for (const l of internalLines) segments[l] = p.segments[l]
     const points = Object.fromEntries(Object.entries(p.points).filter(([, at]) => inside(at)))
     const marks: PieceMark[] = []
@@ -255,9 +335,10 @@ export function splitPiece(
         grain = { angleDeg: p.grain.angleDeg, offset: { x: 0, y: 0 } }
       }
     }
-    const allowance: Record<string, number> = { [id]: d.seamMm }
+    const allowance: Record<string, number> = {}
+    for (const x of cutIds) allowance[x] = d.seamMm
     for (const r of outline)
-      if (r.segment !== id && p.allowance[r.segment] !== undefined)
+      if (!cutIds.has(r.segment) && p.allowance[r.segment] !== undefined)
         allowance[r.segment] = p.allowance[r.segment]
     const centre = (r: OutlineRef) => {
       const role = segments[r.segment]?.role
@@ -265,7 +346,8 @@ export function splitPiece(
     }
     let fold = p.fold
     if (fold) {
-      const hits = intersectSegments(line('fold', fold.from, fold.to), stripMeta(cutSegment))
+      const axis = line('fold', fold.from, fold.to)
+      const hits = Object.values(cutSegments).flatMap((c) => intersectSegments(axis, stripMeta(c)))
       if (hits.length) {
         const x = hits[0].point
         fold = inside(midpoint(fold.from, x))

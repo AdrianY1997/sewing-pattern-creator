@@ -4,7 +4,8 @@
  *   Alt + drag, or the wheel over the ruler, slides it along its own working edge
  * - align ("Alinear"): click a point, the ruler moves so its nearest working edge passes through it
  * - trace ("Trazar"): click two points; the curve along the ruler is previewed with its deviation and
- *   applied on "Aplicar" / Enter (see traceOps)
+ *   applied on "Aplicar" / Enter (see traceOps). "Ajuste automático" moves the ruler to the pose
+ *   that follows the existing curve between the two points best (autoAlignRuler)
  * The pose is UI state (persisted per ruler), not an operation.
  */
 import {
@@ -18,6 +19,7 @@ import {
 } from 'react'
 import {
   alignPose,
+  autoAlignRuler,
   bestRulerTrace,
   degToRad,
   dot,
@@ -39,12 +41,12 @@ import {
 import type { SnapResult } from '../canvas/snap'
 import { screenToWorld, type Size, type ViewTransform } from '../canvas/viewTransform'
 import { newOpId, useEditorStore } from '../store/editorStore'
-import { statePattern } from '../store/useDraft'
+import { cachedDraft, statePattern } from '../store/useDraft'
 import { RulerLayer } from './RulerLayer'
 import './rulers.css'
 import { RulerPanel } from './RulerPanel'
 import { useRulerStore } from './rulerStore'
-import { planTrace } from './traceOps'
+import { draftCurveSources, existingCurveBetween, piecesCurveSources, planTrace } from './traceOps'
 
 interface RulerDrag {
   readonly kind: 'move' | 'rotate' | 'slide'
@@ -98,6 +100,7 @@ export function useRulerTool(opts: {
   const mode = useRulerStore((s) => s.mode)
   const tracePoints = useRulerStore((s) => s.tracePoints)
   const message = useRulerStore((s) => s.message)
+  const autoFit = useRulerStore((s) => s.autoFit)
   const ruler = getRuler(rulerId)
   const [drag, setDrag] = useState<RulerDrag | null>(null)
   const [live, setLive] = useState<RulerPose | null>(null)
@@ -142,6 +145,28 @@ export function useRulerTool(opts: {
     s.applyOps(plan.ops)
     rs.clearTrace()
   }, [trace])
+
+  const autoAlign = useCallback(() => {
+    const rs = useRulerStore.getState()
+    const [a, b] = rs.tracePoints
+    if (!a || !b) return
+    const s = useEditorStore.getState()
+    const sources =
+      s.viewMode === 'pieces'
+        ? piecesCurveSources(statePattern(s).result.pattern.pieces)
+        : draftCurveSources(cachedDraft(s.blockId, s.size, s.blockOptions).draft)
+    const curve = existingCurveBetween(sources.outlines, sources.segments, a.at, b.at)
+    const current = rs.poses[ruler.id]
+    const fit = autoAlignRuler(ruler, a.at, b.at, {
+      ...(curve && { curve }),
+      ...(current && { current }),
+    })
+    if (!fit) {
+      rs.setMessage('La regla no alcanza los dos puntos: prueba con otra regla')
+      return
+    }
+    rs.setAutoFit(ruler.id, fit.pose, fit.curveDeviation)
+  }, [ruler])
 
   // Escape cancels the drag or the trace; Enter applies the trace.
   useEffect(() => {
@@ -276,7 +301,9 @@ export function useRulerTool(opts: {
       pointCount={tracePoints.length}
       trace={trace}
       message={message}
+      autoFit={autoFit}
       onApply={applyTrace}
+      onAutoAlign={autoAlign}
     />
   ) : null
   const cursorClass = !active

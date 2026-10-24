@@ -2,3 +2,4 @@
 export * from './edge'
 export * from './rulers'
 export * from './graduations'
+export * from './autoAlign'
