@@ -15,7 +15,7 @@ test('loads the editor shell with the default block', async ({ page }) => {
   const sizeChips = page.getByRole('group', { name: 'Tallas disponibles' }).getByRole('button')
   await expect(sizeChips).toHaveText(['6 (XS)', '8 (S)', '10 (M)', '12 (L)', '14 (XL)', '16 (XXL)'])
   await expect(page.getByRole('button', { name: 'Vista 3D' })).toBeDisabled()
-  await expect(page.getByRole('button', { name: 'Exportar' })).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'Exportar', exact: true })).toBeEnabled()
   await expect(page.getByTestId('zoom-percent')).toHaveText(/^\d+%$/)
   const box = await page.getByTestId('canvas-viewport').boundingBox()
   expect(box?.width ?? 0).toBeGreaterThan(600)

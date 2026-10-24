@@ -1,0 +1,20 @@
+/* Grading irregularity warning in the Medidas tab (SPEC §3.2). */
+.grading-warning {
+  display: inline-flex;
+  vertical-align: -1px;
+  margin-left: var(--sp-1);
+  color: #c27803;
+  cursor: help;
+}
+
+.grading-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.grading-note svg {
+  flex: none;
+  margin-top: 2px;
+  color: #c27803;
+}

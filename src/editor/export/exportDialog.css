@@ -1,0 +1,183 @@
+/* Exportar dialog (F6) */
+.export-dialog {
+  width: min(1040px, 100%);
+  color: var(--text);
+}
+
+.export-body {
+  display: grid;
+  grid-template-columns: minmax(300px, 1fr) minmax(320px, 1.1fr);
+  gap: var(--sp-5);
+}
+
+.export-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.export-form fieldset {
+  margin: 0;
+  padding: 0;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.export-form legend {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-2);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.export-sizes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+.export-radios {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-4);
+  font-size: 13px;
+}
+
+.export-layers {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-1) var(--sp-3);
+  font-size: 13px;
+}
+
+.export-radios label,
+.export-layers label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.export-radios label.is-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.export-form input[type='checkbox'],
+.export-form input[type='radio'] {
+  accent-color: var(--primary);
+}
+
+.export-filename {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+
+.export-filename-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-weight: 400;
+}
+
+.export-filename input {
+  flex: 1;
+  height: 34px;
+  padding: 0 var(--sp-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font: inherit;
+  font-size: 13px;
+}
+
+.export-side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+
+.export-preview {
+  display: grid;
+  place-items: center;
+  height: 380px;
+  padding: var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--canvas-bg);
+}
+
+.export-preview-svg {
+  width: 100%;
+  height: 100%;
+}
+
+.export-preview-svg .preview-page {
+  fill: #fff;
+  stroke: var(--text-muted);
+  stroke-width: 1px;
+}
+
+.export-preview-svg text {
+  fill: var(--text-muted);
+}
+
+.export-warning,
+.export-status {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0;
+  font-size: 13px;
+}
+
+.export-warning {
+  color: #9a5b00;
+}
+
+.export-status.is-ok {
+  color: #1d7a45;
+}
+
+.export-status.is-error {
+  color: #b42318;
+}
+
+.export-status.is-warn {
+  color: #9a5b00;
+  flex-wrap: wrap;
+}
+
+.export-status a {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  color: var(--primary);
+}
+
+.btn-outline {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--panel-bg);
+}
+
+.btn-outline:not(:disabled):hover {
+  background: var(--primary-soft);
+}
+
+@media (max-width: 860px) {
+  .export-body {
+    grid-template-columns: 1fr;
+  }
+  .export-preview {
+    height: 240px;
+  }
+}

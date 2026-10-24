@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>a0-to-domestic (receptor de prueba)</title>
+  </head>
+  <body>
+    <h1>Receptor de prueba de a0-to-domestic</h1>
+    <p id="state">montado</p>
+    <pre id="log"></pre>
+    <script>
+      // Fake receiver of protocol v1 (docs/integrations/a0-to-domestic.md). The test replaces
+      // the two placeholders when it serves the page.
+      const ALLOWED_ORIGIN = '__ALLOWED_ORIGIN__'
+      const MODE = '__ACK_MODE__' // 'ok' | an error code | 'silent' (never sends ready)
+      const MAX_BYTES = 50 * 1024 * 1024
+      const log = (line) => {
+        document.getElementById('log').textContent += line + '\n'
+      }
+      window.__received = null
+      window.__acks = []
+
+      const reply = (target, msg) => {
+        window.__acks.push(msg)
+        target.postMessage(msg, ALLOWED_ORIGIN)
+      }
+
+      window.addEventListener('message', (ev) => {
+        const d = ev.data
+        if (ev.origin !== ALLOWED_ORIGIN) {
+          log('origen rechazado: ' + ev.origin)
+          if (d && d.requestId)
+            reply(ev.source, {
+              type: 'a0td:import-ack',
+              requestId: d.requestId,
+              ok: false,
+              error: { code: 'ORIGIN_NOT_ALLOWED', message: 'origin' },
+            })
+          return
+        }
+        if (!d || d.type !== 'a0td:import') return
+        const fail = (code, message) =>
+          reply(ev.source, { type: 'a0td:import-ack', requestId: d.requestId, ok: false, error: { code, message } })
+        if (d.version !== 1) return fail('UNSUPPORTED_VERSION', 'version')
+        const f = Array.isArray(d.files) ? d.files[0] : null
+        if (!f || f.mime !== 'application/pdf' || !(f.data instanceof ArrayBuffer))
+          return fail('INVALID_PAYLOAD', 'payload')
+        const bytes = new Uint8Array(f.data)
+        const header = String.fromCharCode(...bytes.slice(0, 5))
+        window.__received = {
+          origin: ev.origin,
+          sourceIsOpener: ev.source === window.opener,
+          type: d.type,
+          version: d.version,
+          requestId: d.requestId,
+          source: d.source,
+          name: f.name,
+          mime: f.mime,
+          byteLength: f.data.byteLength,
+          header,
+          bytes: Array.from(bytes),
+        }
+        log('recibido ' + f.name + ' (' + f.data.byteLength + ' bytes)')
+        if (header !== '%PDF-') return fail('INVALID_PAYLOAD', 'not a pdf')
+        if (f.data.byteLength > MAX_BYTES) return fail('TOO_LARGE', 'size')
+        if (MODE !== 'ok') return fail(MODE, 'forced by the test')
+        document.getElementById('state').textContent = 'importado'
+        reply(ev.source, { type: 'a0td:import-ack', requestId: d.requestId, ok: true, documentId: 'doc-e2e-1' })
+      })
+
+      if (MODE !== 'silent' && location.hash.startsWith('#/import') && window.opener) {
+        window.opener.postMessage({ type: 'a0td:ready', version: 1 }, ALLOWED_ORIGIN)
+        document.getElementById('state').textContent = 'listo'
+      }
+    </script>
+  </body>
+</html>

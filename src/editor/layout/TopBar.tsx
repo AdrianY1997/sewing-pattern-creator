@@ -11,7 +11,8 @@ import {
   Shirt,
   Undo2,
 } from 'lucide-react'
-import { useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
+import { ExportDialog } from '../export/ExportDialog'
 import { useCurrentBlock } from '../store/useDraft'
 import { selectSnapshot, useEditorStore } from '../store/editorStore'
 import { saveProject } from '../store/projectStorage'
@@ -34,6 +35,8 @@ export function TopBar() {
   const canRedo = useEditorStore((s) => s.redoStack.length > 0)
   const undo = useEditorStore((s) => s.undo)
   const redo = useEditorStore((s) => s.redo)
+  const [exportOpen, setExportOpen] = useState(false)
+  const closeExport = useCallback(() => setExportOpen(false), [])
 
   const save = () => {
     const done = (state: SaveState) => {
@@ -132,10 +135,16 @@ export function TopBar() {
           <Save size={18} />
           {saveState === 'saved' ? 'Guardado' : saveState === 'error' ? 'Error' : 'Guardar'}
         </button>
-        <button type="button" className="btn btn-primary" disabled title={COMING_SOON}>
+        <button
+          type="button"
+          className="btn btn-primary"
+          aria-haspopup="dialog"
+          onClick={() => setExportOpen(true)}
+        >
           <Download size={18} />
           Exportar
         </button>
+        {exportOpen && <ExportDialog onClose={closeExport} />}
         <span className="avatar is-placeholder" title={OUT_OF_V1} aria-hidden>
           <CircleUser size={30} strokeWidth={1.25} />
         </span>
