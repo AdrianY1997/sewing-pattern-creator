@@ -3,7 +3,13 @@
  * reference segments by id. Everything is plain JSON so drafts can be stored, diffed and replayed
  * across sizes (same ids for every size).
  */
-import { catmullRom, cubic, curveWithTangents, type CubicBezier } from './bezier'
+import {
+  catmullRom,
+  cubic,
+  curveWithTangents,
+  smoothWithTangents,
+  type CubicBezier,
+} from './bezier'
 import { line, path, reverseSegment, segEnd, type LineSeg, type Path, type Segment } from './path'
 import { distance, type Vec } from './vec'
 
@@ -126,6 +132,26 @@ export class DraftBuilder {
       const to = through[i + 1]
       this.segment(c, this.names(from, to))
     })
+    return curves
+  }
+
+  /**
+   * Smooth curve through points with prescribed end tangents (see smoothWithTangents); segment ids
+   * are `${idPrefix}.0`, `${idPrefix}.1`…
+   */
+  smoothWithTangents(
+    idPrefix: string,
+    through: readonly PointRef[],
+    startDir: Vec,
+    endDir: Vec,
+  ): CubicBezier[] {
+    const curves = smoothWithTangents(
+      through.map((r) => this.resolve(r)),
+      startDir,
+      endDir,
+      idPrefix,
+    )
+    curves.forEach((c, i) => this.segment(c, this.names(through[i], through[i + 1])))
     return curves
   }
 

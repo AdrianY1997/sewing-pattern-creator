@@ -391,3 +391,44 @@ export const catmullRom = (
   }
   return out
 }
+
+/**
+ * Smooth curve through `points` (one cubic per span) whose end tangents are prescribed: it leaves
+ * the first point along `startDir` and arrives at the last point travelling along `endDir`.
+ * Interior tangents follow the Catmull–Rom rule (direction of P[i+1] − P[i−1]); each handle is
+ * chord/3 long, so the chain is C1-continuous in direction. Use it for armholes and necklines that
+ * must meet a seam at a given angle and pass through the method's control points.
+ * Ids are `${idPrefix}.${i}`.
+ */
+export const smoothWithTangents = (
+  points: readonly Vec[],
+  startDir: Vec,
+  endDir: Vec,
+  idPrefix = 'st',
+): CubicBezier[] => {
+  const pts = points.filter((p, i) => i === 0 || distance(p, points[i - 1]) > EPS)
+  if (pts.length < 2) throw new Error('smoothWithTangents: needs at least two distinct points')
+  const d0 = normalize(startDir)
+  const dn = normalize(endDir)
+  if (length(d0) === 0 || length(dn) === 0) throw new Error('smoothWithTangents: zero direction')
+  const n = pts.length
+  const tangents = pts.map((_, i) => {
+    if (i === 0) return d0
+    if (i === n - 1) return dn
+    return normalize(sub(pts[i + 1], pts[i - 1]))
+  })
+  const out: CubicBezier[] = []
+  for (let i = 0; i < n - 1; i++) {
+    const h = distance(pts[i], pts[i + 1]) / 3
+    out.push(
+      cubic(
+        `${idPrefix}.${i}`,
+        pts[i],
+        add(pts[i], scale(tangents[i], h)),
+        sub(pts[i + 1], scale(tangents[i + 1], h)),
+        pts[i + 1],
+      ),
+    )
+  }
+  return out
+}

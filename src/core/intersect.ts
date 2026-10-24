@@ -4,7 +4,7 @@
  */
 import { type CubicBezier, bezierBBox, bezierDerivative, bezierPoint, splitBezier } from './bezier'
 import { solveCubic } from './poly'
-import { segEnd, segmentPoint, type Segment } from './path'
+import { flattenPath, segEnd, segmentPoint, type Path, type Segment } from './path'
 import { cross, distance, dot, lerp, normalize, perp, projectParam, sub, type Vec } from './vec'
 
 /** Parameter tolerance used to accept hits at segment ends. */
@@ -200,4 +200,65 @@ export const lineSegmentIntersections = (a: Vec, b: Vec, s: Segment): Vec[] => {
   if (s.kind === 'cubic') return lineBezierIntersections(a, b, s).map((h) => h.point)
   const hit = lineLineParams(a, b, s.p0, segEnd(s))
   return hit && hit.v >= -PARAM_EPS && hit.v <= 1 + PARAM_EPS ? [hit.point] : []
+}
+
+// ---------- circles ----------
+
+/**
+ * Intersections of the circles (c1, r1) and (c2, r2): 0, 1 (tangent) or 2 points. With two
+ * points, the first is on the `-perp(c2 - c1)` side, i.e. to the left of c1 → c2 as seen on screen
+ * (y down). Coincident circles return [].
+ */
+export const circleCircleIntersections = (c1: Vec, r1: number, c2: Vec, r2: number): Vec[] => {
+  const d = distance(c1, c2)
+  if (d < 1e-12 || r1 < 0 || r2 < 0) return []
+  if (d > r1 + r2 + 1e-9 || d < Math.abs(r1 - r2) - 1e-9) return []
+  const a = (r1 * r1 - r2 * r2 + d * d) / (2 * d)
+  const h2 = r1 * r1 - a * a
+  const u = normalize(sub(c2, c1))
+  const base = { x: c1.x + u.x * a, y: c1.y + u.y * a }
+  if (h2 <= 1e-12 * Math.max(1, r1 * r1)) return [base]
+  const h = Math.sqrt(h2)
+  const n = perp(u)
+  return [
+    { x: base.x - n.x * h, y: base.y - n.y * h },
+    { x: base.x + n.x * h, y: base.y + n.y * h },
+  ]
+}
+
+// ---------- self-intersection ----------
+
+/**
+ * Points where a path crosses itself, found on its polyline approximation (chord error ≤
+ * `tolerance` mm). Adjacent polyline edges only touch at their shared vertex and are ignored, as
+ * is the closing joint of a closed path. Returns [] for a simple path.
+ */
+export const pathSelfIntersections = (p: Path, tolerance = 0.05): Vec[] => {
+  const pts = flattenPath(p, tolerance)
+  const n = pts.length
+  const edges = p.closed ? n : n - 1
+  const hits: Vec[] = []
+  for (let i = 0; i < edges; i++) {
+    const a1 = pts[i]
+    const a2 = pts[(i + 1) % n]
+    const minX = Math.min(a1.x, a2.x)
+    const maxX = Math.max(a1.x, a2.x)
+    const minY = Math.min(a1.y, a2.y)
+    const maxY = Math.max(a1.y, a2.y)
+    for (let j = i + 2; j < edges; j++) {
+      if (p.closed && i === 0 && j === edges - 1) continue
+      const b1 = pts[j]
+      const b2 = pts[(j + 1) % n]
+      if (
+        Math.max(b1.x, b2.x) < minX ||
+        Math.min(b1.x, b2.x) > maxX ||
+        Math.max(b1.y, b2.y) < minY ||
+        Math.min(b1.y, b2.y) > maxY
+      )
+        continue
+      const hit = segmentSegmentIntersection(a1, a2, b1, b2)
+      if (hit) hits.push(hit)
+    }
+  }
+  return hits
 }

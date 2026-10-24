@@ -1,14 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import { bezierPoint, cubic } from './bezier'
 import {
+  circleCircleIntersections,
   intersectSegments,
   lineBezierIntersections,
   lineLineIntersection,
   lineLineParams,
   lineSegmentIntersections,
+  pathSelfIntersections,
   segmentSegmentIntersection,
 } from './intersect'
-import { line } from './path'
+import { line, path } from './path'
 import { distance, vec } from './vec'
 
 describe('line-line (infinite)', () => {
@@ -128,5 +130,57 @@ describe('generic segment intersections', () => {
     expect(
       lineSegmentIntersections(vec(0, 0), vec(1, 0), line('s', vec(0, 1), vec(5, 2))),
     ).toHaveLength(0)
+  })
+})
+
+describe('circle-circle', () => {
+  it('finds both crossings, the first to the screen-left of c1 → c2', () => {
+    const hits = circleCircleIntersections(vec(0, 0), 5, vec(8, 0), 5)
+    expect(hits).toHaveLength(2)
+    expect(hits[0].x).toBeCloseTo(4, 12)
+    expect(hits[0].y).toBeCloseTo(-3, 12)
+    expect(hits[1].y).toBeCloseTo(3, 12)
+    for (const h of hits) {
+      expect(distance(h, vec(0, 0))).toBeCloseTo(5, 12)
+      expect(distance(h, vec(8, 0))).toBeCloseTo(5, 12)
+    }
+  })
+  it('handles tangency, separation, containment and coincidence', () => {
+    const t = circleCircleIntersections(vec(0, 0), 2, vec(5, 0), 3)
+    expect(t).toHaveLength(1)
+    expect(t[0].x).toBeCloseTo(2, 9)
+    expect(circleCircleIntersections(vec(0, 0), 1, vec(5, 0), 1)).toEqual([])
+    expect(circleCircleIntersections(vec(0, 0), 10, vec(1, 0), 1)).toEqual([])
+    expect(circleCircleIntersections(vec(0, 0), 1, vec(0, 0), 1)).toEqual([])
+  })
+})
+
+describe('pathSelfIntersections', () => {
+  it('is empty for a simple closed outline with a curve', () => {
+    const p = path(
+      [
+        line('a', vec(0, 0), vec(100, 0)),
+        line('b', vec(100, 0), vec(100, 100)),
+        cubic('c', vec(100, 100), vec(70, 140), vec(30, 140), vec(0, 100)),
+        line('d', vec(0, 100), vec(0, 0)),
+      ],
+      true,
+    )
+    expect(pathSelfIntersections(p)).toEqual([])
+  })
+  it('finds the crossing of a bow-tie', () => {
+    const p = path(
+      [
+        line('a', vec(0, 0), vec(100, 100)),
+        line('b', vec(100, 100), vec(100, 0)),
+        line('c', vec(100, 0), vec(0, 100)),
+        line('d', vec(0, 100), vec(0, 0)),
+      ],
+      true,
+    )
+    const hits = pathSelfIntersections(p)
+    expect(hits).toHaveLength(1)
+    expect(hits[0].x).toBeCloseTo(50, 9)
+    expect(hits[0].y).toBeCloseTo(50, 9)
   })
 })

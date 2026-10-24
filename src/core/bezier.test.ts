@@ -11,6 +11,7 @@ import {
   curveWithTangents,
   flattenBezier,
   nearestOnBezier,
+  smoothWithTangents,
   splitBezier,
   splitBezierAtLength,
   subBezier,
@@ -181,5 +182,32 @@ describe('bbox, nearest, flatten', () => {
     }
     expect(pts[0]).toEqual(parabola.p0)
     expect(pts[pts.length - 1]).toEqual(parabola.p3)
+  })
+})
+
+describe('smoothWithTangents', () => {
+  const pts = [vec(0, 0), vec(40, 60), vec(100, 80), vec(160, 40)]
+  const curves = smoothWithTangents(pts, vec(0, 1), vec(1, -1), 'arm')
+  it('passes through every point with stable ids', () => {
+    expect(curves.map((c) => c.id)).toEqual(['arm.0', 'arm.1', 'arm.2'])
+    curves.forEach((c, i) => {
+      expect(c.p0).toEqual(pts[i])
+      expect(c.p3).toEqual(pts[i + 1])
+    })
+  })
+  it('honours the prescribed end tangents', () => {
+    expectParallel(bezierTangent(curves[0], 0), vec(0, 1), 1e-12)
+    expectParallel(bezierTangent(curves[2], 1), normalize(vec(1, -1)), 1e-12)
+  })
+  it('is tangent-continuous at interior points (Catmull–Rom direction)', () => {
+    for (let i = 1; i < curves.length; i++) {
+      const t = normalize(sub(pts[i + 1], pts[i - 1]))
+      expectParallel(bezierTangent(curves[i - 1], 1), t, 1e-12)
+      expectParallel(bezierTangent(curves[i], 0), t, 1e-12)
+    }
+  })
+  it('rejects degenerate input', () => {
+    expect(() => smoothWithTangents([vec(0, 0)], vec(1, 0), vec(1, 0))).toThrow()
+    expect(() => smoothWithTangents([vec(0, 0), vec(1, 0)], vec(0, 0), vec(1, 0))).toThrow()
   })
 })

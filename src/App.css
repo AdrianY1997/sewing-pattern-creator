@@ -1,0 +1,176 @@
+/* Minimal read-only preview (F1). Tokens follow docs/UI.md. */
+:root {
+  --nav-bg: #111a33;
+  --nav-text: #cfd6e6;
+  --nav-text-muted: #8591ad;
+  --app-bg: #f1f3f8;
+  --panel-bg: #ffffff;
+  --canvas-bg: #f6f8fc;
+  --border: #e3e7ef;
+  --text: #1c2236;
+  --text-muted: #6b7491;
+  --layer-outline: #1d4ed8;
+  --layer-guide: #8a94ad;
+  --grainline: #7a859f;
+  --piece-back: #1d4ed8;
+  --piece-front: #e0309a;
+  --font: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+}
+
+body {
+  background: var(--app-bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 14px;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.topbar {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  padding: 12px 16px;
+  background: var(--nav-bg);
+  color: var(--nav-text);
+}
+
+.topbar h1 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.tagline {
+  color: var(--nav-text-muted);
+  font-size: 12px;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 20px;
+  padding: 10px 16px;
+  background: var(--panel-bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.controls label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.controls select {
+  font: inherit;
+  padding: 4px 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel-bg);
+  color: var(--text);
+}
+
+.metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 0 0 0 auto;
+  font-size: 12px;
+}
+
+.metrics div {
+  display: flex;
+  gap: 4px;
+}
+
+.metrics dt {
+  color: var(--text-muted);
+}
+
+.metrics dt::after {
+  content: ':';
+}
+
+.metrics dd {
+  margin: 0;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.canvas {
+  flex: 1;
+  min-height: 0;
+  padding: 8px;
+  background: var(--canvas-bg);
+}
+
+.draft-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 320px;
+}
+
+.draft-svg path {
+  fill: none;
+  vector-effect: non-scaling-stroke;
+}
+
+.draft-svg .outline {
+  stroke-width: 2px;
+  stroke-linejoin: round;
+}
+
+.draft-svg .internal {
+  stroke-width: 1.2px;
+  stroke-dasharray: 6 3;
+}
+
+.draft-svg .grain {
+  stroke: var(--grainline);
+  stroke-width: 1px;
+}
+
+.draft-svg .construction {
+  stroke: var(--layer-guide);
+  stroke-width: 0.8px;
+  stroke-dasharray: 2 3;
+}
+
+.draft-svg .bust-point {
+  fill: var(--piece-front);
+}
+
+.draft-svg .point {
+  fill: var(--text);
+}
+
+.draft-svg .point-label {
+  fill: var(--text);
+  font-family: var(--font);
+  paint-order: stroke;
+  stroke: var(--canvas-bg);
+  stroke-width: 1px;
+}
+
+.draft-svg .grain-head {
+  fill: var(--grainline);
+  stroke: none;
+}
