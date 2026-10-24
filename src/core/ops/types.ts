@@ -49,6 +49,13 @@ export interface PatternPiece {
   readonly points: Readonly<Record<string, Vec>>
   /** Fold line left by cutOnFold (local coordinates), null when the piece was not unfolded. */
   readonly fold: { readonly from: Vec; readonly to: Vec } | null
+  /**
+   * Seam allowance (mm) per outline segment id. Fold edges are cut without allowance whatever
+   * this says (see edgeAllowance).
+   */
+  readonly allowance: Readonly<Record<string, number>>
+  /** Grainline set by setGrainline, relative to the block's grainline (see SetGrainlineOp). */
+  readonly grain: GrainSetting
   /** Local → world (placement on the canvas / layout). */
   readonly transform: Affine
 }
@@ -59,6 +66,21 @@ export interface Pattern {
   /** Extracted pieces, in creation order. */
   readonly pieces: readonly PatternPiece[]
 }
+
+export interface GrainSetting {
+  /** Degrees from the block's grainline, clockwise on screen in the piece's local frame. */
+  readonly angleDeg: number
+  /** Translation of the grainline's midpoint (mm, local frame). */
+  readonly offset: Vec
+}
+
+/**
+ * Where a text or button mark sits: at `ratio` of the arc length of a segment of the piece, moved
+ * `offsetMm` towards the inside of the piece (outline edges), or on a named point of the piece.
+ */
+export type MarkAnchor =
+  | { readonly segmentId: string; readonly ratio: number; readonly offsetMm: number }
+  | { readonly pointName: string }
 
 // ---------- operations ----------
 
@@ -131,6 +153,73 @@ export interface AutoLayoutOp extends OpBase {
   readonly gapMm?: number
 }
 
+/**
+ * Seam allowance of some outline edges (or all of them) of a piece, in mm. Fold edges stay at 0.
+ * Extracted pieces start with the defaults of ReplayOptions.allowance.
+ */
+export interface SetSeamAllowanceOp extends OpBase {
+  readonly type: 'setSeamAllowance'
+  readonly pieceId: string
+  readonly segmentIds: readonly string[] | 'all'
+  readonly mm: number
+}
+
+/**
+ * Notch (piquete) on an outline edge, at `atMm` mm of arc length from the segment's start or at
+ * `atRatio` (0–1) of its length; `atRatio` keeps its relative place in every size. The mark id is
+ * the operation id.
+ */
+export interface AddNotchOp extends OpBase {
+  readonly type: 'addNotch'
+  readonly pieceId: string
+  readonly segmentId: string
+  readonly atMm?: number
+  readonly atRatio?: number
+  /** Double notch (back pieces). */
+  readonly double?: boolean
+}
+
+export interface RemoveNotchOp extends OpBase {
+  readonly type: 'removeNotch'
+  readonly pieceId: string
+  readonly markId: string
+}
+
+/**
+ * Grainline of a piece: rotated `angleDeg` about its midpoint and moved by `offset` (local mm),
+ * both relative to the block's grainline (absolute values: the last operation wins). Omitted
+ * fields keep their current value.
+ */
+export interface SetGrainlineOp extends OpBase {
+  readonly type: 'setGrainline'
+  readonly pieceId: string
+  readonly angleDeg?: number
+  readonly offset?: Vec
+}
+
+/** Text mark on the piece (mark id = operation id). */
+export interface AddTextMarkOp extends OpBase {
+  readonly type: 'addTextMark'
+  readonly pieceId: string
+  readonly text: string
+  readonly at: MarkAnchor
+}
+
+/** Button position: a circle of `diameterMm` (mark id = operation id). */
+export interface AddButtonOp extends OpBase {
+  readonly type: 'addButton'
+  readonly pieceId: string
+  readonly at: MarkAnchor
+  readonly diameterMm: number
+}
+
+/** Remove any mark (notch, text, button…) except the grainline. */
+export interface RemoveMarkOp extends OpBase {
+  readonly type: 'removeMark'
+  readonly pieceId: string
+  readonly markId: string
+}
+
 export type Operation =
   | ExtractPieceOp
   | ExtractAllOp
@@ -141,6 +230,13 @@ export type Operation =
   | DeletePieceOp
   | SetPieceMetaOp
   | AutoLayoutOp
+  | SetSeamAllowanceOp
+  | AddNotchOp
+  | RemoveNotchOp
+  | SetGrainlineOp
+  | AddTextMarkOp
+  | AddButtonOp
+  | RemoveMarkOp
 
 export type OperationType = Operation['type']
 
@@ -167,8 +263,24 @@ export interface PieceDefaults {
   readonly fabric?: string
 }
 
+/** Seam allowance given to the edges of a freshly extracted piece ("Opciones avanzadas"). */
+export interface AllowanceDefaults {
+  /** Every edge (mm). */
+  readonly seamMm: number
+  /** Edges with role 'hem' (mm). */
+  readonly hemMm: number
+}
+
+/** 1 cm seam allowance, 2 cm hem (docs/UI.md, "Opciones avanzadas"). */
+export const DEFAULT_ALLOWANCE: AllowanceDefaults = { seamMm: 10, hemMm: 20 }
+
+/** Largest seam allowance an operation accepts (mm). */
+export const MAX_ALLOWANCE_MM = 100
+
 export interface ReplayOptions {
   readonly pieceDefaults?: (sourcePieceId: string) => PieceDefaults
+  /** Default DEFAULT_ALLOWANCE. */
+  readonly allowance?: AllowanceDefaults
 }
 
 /** Gap (mm) between pieces placed by extract/duplicate and autoLayout: room for seam allowance. */

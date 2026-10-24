@@ -401,6 +401,15 @@ export function draftMenBodice(
     },
   )
 
+  // =================== roles ===================
+  b.role('centerBack', 'back.cb')
+  b.role('centerFront', 'front.cf')
+  b.role('neckline', 'back.neck', 'front.neck')
+  b.role('shoulder', 'back.shoulder', 'front.shoulder')
+  b.role('armhole', ...S_.back.armhole, ...S_.front.armhole)
+  b.role('side', ...S_.back.side, ...S_.front.side)
+  b.role('hem', 'back.hem', 'front.hem')
+
   return b.build()
 }
 

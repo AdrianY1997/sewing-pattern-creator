@@ -434,6 +434,38 @@ export function draftWomenBodice(
     ],
   })
 
+  // =================== roles ===================
+  b.role('centerBack', 'back.cb')
+  b.role('neckline', 'back.neck', 'front.neck')
+  b.role('shoulder', 'back.shoulder', 'front.shoulder')
+  b.role('armhole', ...WOMEN_BODICE_SEAMS.back.armhole, ...WOMEN_BODICE_SEAMS.front.armhole)
+  b.role('side', 'back.side', 'front.side', 'front.sideLower')
+  b.role('dart', 'front.dartCap.0', 'front.dartCap.1')
+  b.role('waist', 'back.waist', 'front.waist')
+  b.role('centerFront', 'front.cf')
+  b.role(
+    'dart',
+    'back.dart.left',
+    'back.dart.right',
+    'front.bustDart.upper',
+    'front.bustDart.lower',
+    'front.waistDart.left',
+    'front.waistDart.right',
+  )
+  if (hip) {
+    b.role('centerBack', 'back.cbHip')
+    b.role('centerFront', 'front.cfHip')
+    b.role('side', 'back.sideHip', 'front.sideHip')
+    b.role('hem', 'back.hem', 'front.hem')
+    b.role(
+      'dart',
+      'back.dart.leftLow',
+      'back.dart.rightLow',
+      'front.waistDart.leftLow',
+      'front.waistDart.rightLow',
+    )
+  }
+
   return b.build()
 }
 

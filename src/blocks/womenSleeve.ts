@@ -291,6 +291,11 @@ export function draftWomenSleeve(
     { internalLines: ['sleeve.grain'], marks },
   )
 
+  // =================== roles ===================
+  b.role('cap', ...WOMEN_SLEEVE_SEAMS.capBack, ...WOMEN_SLEEVE_SEAMS.capFront)
+  b.role('underarm', WOMEN_SLEEVE_SEAMS.underarmBack, WOMEN_SLEEVE_SEAMS.underarmFront)
+  b.role('hem', WOMEN_SLEEVE_SEAMS.hem)
+
   return b.build()
 }
 

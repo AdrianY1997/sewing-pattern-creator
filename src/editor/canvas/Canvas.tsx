@@ -11,6 +11,7 @@ import {
 import {
   applyOperations,
   distance,
+  midpoint,
   radToDeg,
   segmentBBox,
   stripMeta,
@@ -21,10 +22,11 @@ import {
 } from '../../core'
 import { useEditorStore } from '../store/editorStore'
 import {
+  allowanceDefaults,
   buildPatternData,
   cachedDraft,
-  cachedPattern,
   replayOptionsFor,
+  statePattern,
   useCurrentBlock,
   useCurrentPattern,
   useDisplay,
@@ -37,6 +39,7 @@ import { CursorReadout } from './CursorReadout'
 import { DraftLayers } from './DraftLayers'
 import { Grid } from './Grid'
 import { LayersPanel } from './LayersPanel'
+import { grainMoveOp, grainRotateOp, notchCandidate } from './markTools'
 import { PieceContextMenu, type ContextMenuState } from './PieceContextMenu'
 import { pieceActions } from './pieceActions'
 import { SNAP_TOLERANCE_PX, buildSnapIndex, pointsAt, snap, type SnapResult } from './snap'
@@ -71,23 +74,28 @@ function useElementSize(ref: RefObject<HTMLElement | null>): Size {
 const displayBBox = (): BBox => {
   const s = useEditorStore.getState()
   if (s.viewMode === 'pieces') {
-    const p = cachedPattern(s.blockId, s.size, s.blockOptions, s.operations)
+    const p = statePattern(s)
     if (p.result.pattern.pieces.length > 0) return p.render.bbox
   }
   return cachedDraft(s.blockId, s.size, s.blockOptions).render.bbox
 }
 
-/** A piece being dragged with the Mover or Rotar tool (Piezas view). */
+/**
+ * A drag in the Piezas view: a piece with the Mover or Rotar tool, or the grainline of the selected
+ * piece by its handles (grainMove: centre handle; grainRotate: end handles).
+ */
 interface Drag {
-  readonly kind: 'move' | 'rotate'
+  readonly kind: 'move' | 'rotate' | 'grainMove' | 'grainRotate'
   readonly pieceId: string
   readonly pointerId: number
   /** World position where the drag started. */
   readonly start: Vec
   /** Point of the piece that follows the cursor and snaps (Mover). */
   readonly anchor: Vec
-  /** Rotation centre: the bbox centre of the piece (Rotar). */
+  /** Rotation centre: the bbox centre of the piece (Rotar) or the grainline midpoint. */
   readonly centre: Vec
+  /** Grainline handle being dragged: +1 its end, −1 its start. */
+  readonly end?: 1 | -1
   /** Operation the drag would commit now (previewed; committed once on pointer up). */
   readonly op: OperationInput | null
   readonly snap: SnapResult | null
@@ -97,6 +105,11 @@ const localPoint = (el: HTMLElement, ev: { clientX: number; clientY: number }): 
   const r = el.getBoundingClientRect()
   return { x: ev.clientX - r.left, y: ev.clientY - r.top }
 }
+
+const grainHandleUnder = (target: EventTarget | null): string | null =>
+  target instanceof Element
+    ? (target.closest('[data-grain-handle]')?.getAttribute('data-grain-handle') ?? null)
+    : null
 
 const pieceUnder = (target: EventTarget | null): string | null =>
   target instanceof Element
@@ -125,6 +138,7 @@ export function Canvas() {
   const selectedSegmentId = useEditorStore((s) => s.selectedSegmentId)
   const selectSegment = useEditorStore((s) => s.selectSegment)
   const snapEnabled = useEditorStore((s) => s.snapEnabled)
+  const advanced = useEditorStore((s) => s.advanced)
   const mode = display.mode
   const sizes = useSizeOutlines(layers.sizes)
   const { cursor, panning, spaceDown, handlers } = useViewportControls(viewportRef)
@@ -158,12 +172,11 @@ export function Canvas() {
   const shown: DisplayData = useMemo(() => {
     if (!pendingOp || mode !== 'pieces') return display
     const op = { ...pendingOp, id: 'preview' } as Operation
-    const data = buildPatternData(
-      applyOperations(pattern.result.pattern, [op], replayOptionsFor(block)),
-    )
-    return { mode, draft: data.world, render: data.render }
-  }, [pendingOp, mode, display, pattern, block])
-  const { draft, render } = shown
+    const options = replayOptionsFor(block, allowanceDefaults(advanced))
+    const data = buildPatternData(applyOperations(pattern.result.pattern, [op], options))
+    return { mode, draft: data.world, render: data.render, seams: data.seams }
+  }, [pendingOp, mode, display, pattern, block, advanced])
+  const { draft, render, seams } = shown
 
   /** Real size (1:1 with the calibration), centred on the selection or the whole drawing. */
   const realSize = () => {
@@ -191,11 +204,23 @@ export function Canvas() {
   }, [display, layers, excluded])
 
   const tracking = cursor !== null && !panning
+  const notchTool = mode === 'pieces' && tool === 'notch' && !spaceDown
   const snapped = drag
     ? drag.snap
     : tracking && snapEnabled
-      ? snap(snapIndex, cursor, { scale: view.scale, grid: showGrid })
+      ? snap(snapIndex, cursor, { scale: view.scale, grid: showGrid && !notchTool })
       : null
+  // "Añadir piquete": the outline point under the (snapped) cursor.
+  const notchAt =
+    notchTool && tracking && !drag
+      ? notchCandidate(draft, render, snapped?.at ?? cursor, (1.5 * SNAP_TOLERANCE_PX) / view.scale)
+      : null
+
+  // Grainline handles of the selected extracted piece.
+  const grainline =
+    mode === 'pieces' && tool === 'select' && layers.outline && !spaceDown
+      ? render.grainlines.find((g) => g.pieceId === selectedPieceId)
+      : undefined
   const hovered =
     tracking && !drag && tool === 'select' && !spaceDown
       ? pointsAt(render.points, cursor, view.scale)
@@ -214,6 +239,40 @@ export function Canvas() {
     const pieceId = pieceUnder(ev.target)
     const piece = render.pieces.find((p) => p.id === pieceId)
     const start = worldAt(ev)
+    const handle = grainHandleUnder(ev.target)
+    if (ev.button === 0 && handle && grainline && start) {
+      ev.preventDefault()
+      ev.currentTarget.setPointerCapture(ev.pointerId)
+      setDrag({
+        kind: handle === 'move' ? 'grainMove' : 'grainRotate',
+        pieceId: grainline.pieceId,
+        pointerId: ev.pointerId,
+        start,
+        anchor: start,
+        centre: midpoint(grainline.from, grainline.to),
+        end: handle === 'start' ? -1 : 1,
+        op: null,
+        snap: null,
+      })
+      return
+    }
+    if (ev.button === 0 && notchTool && start) {
+      const s = useEditorStore.getState()
+      const hit = s.snapEnabled
+        ? snap(snapIndex, start, { scale: s.view.scale, grid: false })
+        : null
+      const c = notchCandidate(
+        draft,
+        render,
+        hit?.at ?? start,
+        (1.5 * SNAP_TOLERANCE_PX) / s.view.scale,
+      )
+      if (c) {
+        ev.preventDefault()
+        pieceActions.addNotch(c.pieceId, c.segmentId, { atRatio: c.ratio })
+        return
+      }
+    }
     if (
       ev.button === 0 &&
       mode === 'pieces' &&
@@ -255,6 +314,16 @@ export function Canvas() {
     if (!drag || ev.pointerId !== drag.pointerId) return
     const p = worldAt(ev)
     if (!p) return
+    if (drag.kind === 'grainMove' || drag.kind === 'grainRotate') {
+      const piece = pattern.result.pattern.pieces.find((q) => q.id === drag.pieceId)
+      if (!piece) return
+      const op =
+        drag.kind === 'grainMove'
+          ? grainMoveOp(piece, { x: p.x - drag.start.x, y: p.y - drag.start.y })
+          : grainRotateOp(piece, drag.centre, p, drag.end ?? 1, ev.shiftKey)
+      setDrag({ ...drag, op })
+      return
+    }
     if (drag.kind === 'move') {
       const target = {
         x: drag.anchor.x + p.x - drag.start.x,
@@ -290,9 +359,10 @@ export function Canvas() {
       ev.currentTarget.releasePointerCapture(ev.pointerId)
     const op = drag.op
     const moved =
-      op?.type === 'transformPiece' &&
-      ((op.translate && Math.hypot(op.translate.x, op.translate.y) > 1e-6) ||
-        (op.rotateDeg !== undefined && Math.abs(op.rotateDeg) > 1e-6))
+      op?.type === 'setGrainline' ||
+      (op?.type === 'transformPiece' &&
+        ((op.translate && Math.hypot(op.translate.x, op.translate.y) > 1e-6) ||
+          (op.rotateDeg !== undefined && Math.abs(op.rotateDeg) > 1e-6)))
     // One operation per drag, committed on release.
     if (op && moved) useEditorStore.getState().applyOps(op)
     setDrag(null)
@@ -315,7 +385,10 @@ export function Canvas() {
 
   const panMode = panning ? 'is-panning' : spaceDown || tool === 'pan' ? 'can-pan' : ''
   const toolClass =
-    mode === 'pieces' && (tool === 'move' || tool === 'rotate') ? `tool-${tool}` : ''
+    mode === 'pieces' && (tool === 'move' || tool === 'rotate' || tool === 'notch')
+      ? `tool-${tool}`
+      : ''
+  const px = 1 / view.scale
   const empty = mode === 'pieces' && pattern.result.pattern.pieces.length === 0
 
   return (
@@ -346,6 +419,7 @@ export function Canvas() {
           >
             <DraftLayers
               render={render}
+              seams={seams}
               block={block}
               sizes={sizes}
               layers={layers}
@@ -356,6 +430,46 @@ export function Canvas() {
               onSelectPiece={selectPiece}
               onSelectSegment={selectSegment}
             />
+            {notchAt && (
+              <line
+                className="notch-preview"
+                data-testid="notch-preview"
+                x1={notchAt.at.x - notchAt.tangent.y * 7 * px}
+                y1={notchAt.at.y + notchAt.tangent.x * 7 * px}
+                x2={notchAt.at.x + notchAt.tangent.y * 7 * px}
+                y2={notchAt.at.y - notchAt.tangent.x * 7 * px}
+              />
+            )}
+            {grainline && (
+              <g className="grain-handles" data-testid="grain-handles">
+                <circle
+                  className="grain-handle is-move"
+                  data-grain-handle="move"
+                  data-testid="grain-handle-move"
+                  cx={(grainline.from.x + grainline.to.x) / 2}
+                  cy={(grainline.from.y + grainline.to.y) / 2}
+                  r={6 * px}
+                >
+                  <title>Mover el hilo</title>
+                </circle>
+                {(['start', 'end'] as const).map((k) => {
+                  const at = k === 'start' ? grainline.from : grainline.to
+                  return (
+                    <circle
+                      key={k}
+                      className="grain-handle is-rotate"
+                      data-grain-handle={k}
+                      data-testid="grain-handle-rotate"
+                      cx={at.x}
+                      cy={at.y}
+                      r={5 * px}
+                    >
+                      <title>Girar el hilo (Mayús: 0°/45°/90°)</title>
+                    </circle>
+                  )
+                })}
+              </g>
+            )}
           </g>
           <g className="overlay" aria-hidden>
             {hovered.length > 0 && <HoverRing at={hovered[0].at} view={view} />}

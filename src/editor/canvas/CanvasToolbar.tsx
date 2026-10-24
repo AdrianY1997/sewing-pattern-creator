@@ -7,6 +7,7 @@ import {
   Move,
   RotateCw,
   Scaling,
+  Scissors,
   Slash,
   Spline,
   type LucideIcon,
@@ -28,6 +29,8 @@ interface ToolDef {
   readonly action?: Action
   readonly hint?: string
   readonly iconOnly?: boolean
+  /** Shorter caption under the icon (the label stays the accessible name). */
+  readonly caption?: string
 }
 
 const GROUPS: readonly (readonly ToolDef[])[] = [
@@ -66,6 +69,13 @@ const GROUPS: readonly (readonly ToolDef[])[] = [
       iconOnly: true,
       action: 'mirrorH',
       hint: 'Espejar la pieza seleccionada (eje horizontal)',
+    },
+    {
+      label: 'Añadir piquete',
+      caption: 'Piquete',
+      icon: Scissors,
+      tool: 'notch',
+      hint: 'Añadir piquete: clic sobre el contorno de una pieza separada (vista Piezas)',
     },
   ],
 ]
@@ -121,7 +131,7 @@ export function CanvasToolbar() {
                 }}
               >
                 <Icon size={19} strokeWidth={1.6} aria-hidden />
-                {!t.iconOnly && <span>{t.label}</span>}
+                {!t.iconOnly && <span>{t.caption ?? t.label}</span>}
               </button>
             )
           })}

@@ -38,8 +38,9 @@ export type LeftTab = 'design' | 'measurements' | 'settings'
  * - pan: drag pans the view
  * - move: drag extracted pieces (Piezas view); elsewhere the drag pans the view
  * - rotate: rotate extracted pieces by dragging (Shift: 15° steps)
+ * - notch: "Añadir piquete", a click on the outline of an extracted piece adds a notch there
  */
-export type Tool = 'select' | 'pan' | 'move' | 'rotate'
+export type Tool = 'select' | 'pan' | 'move' | 'rotate' | 'notch'
 /** Canvas view: the combined construction ("Trazo") or the extracted pieces ("Piezas"). */
 export type ViewMode = 'trace' | 'pieces'
 /** Side panel shown as a drawer on narrow screens (docs/UI.md §5). */

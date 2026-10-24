@@ -72,6 +72,21 @@ export interface MarkRender {
   readonly at: Vec
 }
 
+export interface TextMarkRender {
+  readonly id: string
+  readonly pieceId: string
+  readonly at: Vec
+  readonly text: string
+}
+
+export interface ButtonRender {
+  readonly id: string
+  readonly pieceId: string
+  readonly at: Vec
+  /** Radius (mm). */
+  readonly r: number
+}
+
 export interface NotchRender {
   readonly id: string
   readonly pieceId: string
@@ -133,6 +148,10 @@ export interface DraftRender {
   readonly dartMarks: readonly MarkRender[]
   readonly grainlines: readonly GrainlineRender[]
   readonly notches: readonly NotchRender[]
+  /** Text marks (addTextMark). */
+  readonly texts: readonly TextMarkRender[]
+  /** Button positions (addButton). */
+  readonly buttons: readonly ButtonRender[]
   /** Construction lines and internal reference lines (e.g. the waist line of a hip block). */
   readonly guides: readonly LineRender[]
   /** Fold lines of pieces unfolded with "cortar al doblez". */
@@ -233,6 +252,23 @@ export function buildDraftRender(draft: Draft): DraftRender {
       }))
   })
 
+  const marksOf = (kind: string) =>
+    draft.pieces.flatMap((pc) =>
+      pc.marks.filter((m) => m.kind === kind).map((m) => ({ m, pieceId: pc.id })),
+    )
+  const texts = marksOf('text').map(({ m, pieceId }) => ({
+    id: m.id,
+    pieceId,
+    at: m.at,
+    text: typeof m.data?.text === 'string' ? m.data.text : '',
+  }))
+  const buttons = marksOf('button').map(({ m, pieceId }) => ({
+    id: m.id,
+    pieceId,
+    at: m.at,
+    r: (typeof m.data?.diameterMm === 'number' ? m.data.diameterMm : 10) / 2,
+  }))
+
   const segments: SegmentRender[] = [
     ...draft.pieces.flatMap((pc) =>
       pc.outline.map((r) => ({
@@ -255,6 +291,8 @@ export function buildDraftRender(draft: Draft): DraftRender {
     dartMarks,
     grainlines,
     notches,
+    texts,
+    buttons,
     guides,
     points: Object.entries(draft.points).map(([name, at]) => ({ name, at })),
     bbox: segs.length ? unionBBox(segs.map(segmentBBox)) : { minX: 0, minY: 0, maxX: 0, maxY: 0 },
@@ -317,7 +355,7 @@ export interface PieceMetrics {
   readonly perimeter: number
   /** Enclosed area (mm²). */
   readonly area: number
-  /** Total length of the armhole segments (ids containing "armhole"), or null if none (mm). */
+  /** Total length of the armhole edges (role 'armhole', or ids containing "armhole"), or null. */
   readonly armhole: number | null
 }
 
@@ -328,7 +366,12 @@ export function pieceMetrics(draft: Draft, pieceId: string): PieceMetrics {
   const p = piecePath(draft, pieceId)
   const perimeter = p.segments.reduce((acc, s) => acc + segmentLength(s), 0)
   const area = Math.abs(polygonSignedArea(flattenPath(p, 0.01)))
-  const armholeIds = piece.outline.map((r) => r.segment).filter((id) => /armhole/i.test(id))
+  const armholeIds = piece.outline
+    .map((r) => r.segment)
+    .filter((id) => {
+      const role = draft.segments[id]?.role
+      return role ? role === 'armhole' : /armhole/i.test(id)
+    })
   const armhole = armholeIds.length
     ? armholeIds.reduce((acc, id) => acc + segmentLength(draft.segments[id]), 0)
     : null

@@ -44,6 +44,31 @@ test('F4a: separated pieces, with and without nested sizes', async ({ page }) =>
   await page.screenshot({ path: path.join(dir, 'f4a-pieces-sizes.png') })
 })
 
+test('F4b: skirt and trousers separated, with seam allowance and notches', async ({ page }) => {
+  for (const [block, file] of [
+    ['women-skirt', 'f4b-skirt.png'],
+    ['women-trousers', 'f4b-trousers.png'],
+  ] as const) {
+    await page.goto('./')
+    await page.getByLabel('Tipo de prenda').selectOption(block)
+    await page.getByTestId('separate-all').click()
+    await expect(page.getByTestId('seam-line')).toHaveCount(2)
+    await page.locator('.layers-head').click()
+    // A notch added by clicking on the outline of the back piece (centre back, half way).
+    await page.getByRole('button', { name: 'Añadir piquete' }).click()
+    const outline = await page
+      .locator('[data-testid="piece-outline"][data-piece="back"]')
+      .boundingBox()
+    if (!outline) throw new Error('no back piece')
+    await page.mouse.click(outline.x + 1, outline.y + outline.height * 0.3)
+    // The notch selects the back piece: its Márgenes / Marcas show in the right panel.
+    await page.getByRole('button', { name: 'Seleccionar', exact: true }).click()
+    await expect(page.getByTestId('allowance-section')).toBeVisible()
+    await page.mouse.move(700, 1000)
+    await page.screenshot({ path: path.join(dir, file) })
+  }
+})
+
 test.describe('narrow', () => {
   test.use({ viewport: { width: 1000, height: 800 } })
   test('F2b: drawers at 1000 px', async ({ page }) => {

@@ -287,6 +287,11 @@ export function draftMenSleeve(
     { internalLines: ['sleeve.grain'], marks },
   )
 
+  // =================== roles ===================
+  b.role('cap', ...S.capBack, ...S.capFront)
+  b.role('underarm', ...S.underarmBack, ...S.underarmFront)
+  b.role('hem', S.hem)
+
   return b.build()
 }
 

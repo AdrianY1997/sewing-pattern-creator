@@ -22,8 +22,9 @@
   align-items: center;
   justify-content: center;
   gap: 3px;
-  min-width: 52px;
-  padding: 6px var(--sp-2);
+  flex-shrink: 0;
+  min-width: 48px;
+  padding: 6px 5px;
   border: none;
   border-radius: var(--radius-md);
   background: none;
@@ -243,6 +244,38 @@
   pointer-events: none;
 }
 
+.cut-line {
+  fill: none;
+  stroke: var(--layer-seam);
+  stroke-width: 1.2px;
+  stroke-dasharray: 4 3;
+  stroke-linejoin: miter;
+  pointer-events: none;
+}
+
+.layer-seam .notch line {
+  stroke: var(--layer-seam);
+  stroke-width: 1.2px;
+}
+
+.button-mark circle,
+.button-mark path {
+  fill: none;
+  stroke: var(--layer-outline);
+  stroke-width: 1px;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+.text-mark {
+  fill: var(--layer-notes);
+  font-family: var(--font);
+  pointer-events: none;
+  paint-order: stroke;
+  stroke: var(--canvas-bg);
+  stroke-linejoin: round; /* stroke-width set inline (world units) */
+}
+
 .grainline line {
   stroke: var(--grainline);
   stroke-width: 1px;
@@ -446,6 +479,30 @@
 }
 
 .viewport.tool-rotate .piece {
+  cursor: alias;
+}
+
+.viewport.tool-notch .piece {
+  cursor: crosshair;
+}
+
+.notch-preview {
+  stroke: var(--layer-seam);
+  stroke-width: 2.5px;
+  stroke-linecap: round;
+  pointer-events: none;
+}
+
+.grain-handle {
+  fill: #fff;
+  stroke: var(--selection);
+  stroke-width: 1.5px;
+  vector-effect: non-scaling-stroke;
+  cursor: move;
+}
+
+.grain-handle.is-rotate {
+  fill: var(--primary-soft);
   cursor: alias;
 }
 

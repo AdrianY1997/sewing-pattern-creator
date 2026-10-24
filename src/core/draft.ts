@@ -13,8 +13,54 @@ import {
 import { line, path, reverseSegment, segEnd, type LineSeg, type Path, type Segment } from './path'
 import { distance, type Vec } from './vec'
 
-/** A segment plus the names of the construction points it joins (when built from names). */
-export type DraftSegment = Segment & { readonly from?: string; readonly to?: string }
+/**
+ * What an edge is in the garment. Seam allowance defaults use it (hem → hem allowance, fold → 0)
+ * and so do readouts such as the armhole length.
+ */
+export type SegmentRole =
+  | 'hem'
+  | 'centerFront'
+  | 'centerBack'
+  | 'fold'
+  | 'waist'
+  | 'neckline'
+  | 'armhole'
+  | 'side'
+  | 'shoulder'
+  | 'inseam'
+  | 'outseam'
+  | 'crotch'
+  | 'cap'
+  | 'underarm'
+  | 'dart'
+
+export const SEGMENT_ROLES: readonly SegmentRole[] = [
+  'hem',
+  'centerFront',
+  'centerBack',
+  'fold',
+  'waist',
+  'neckline',
+  'armhole',
+  'side',
+  'shoulder',
+  'inseam',
+  'outseam',
+  'crotch',
+  'cap',
+  'underarm',
+  'dart',
+]
+
+/**
+ * A segment plus the names of the construction points it joins (when built from names) and its
+ * role in the garment (outline edges of the blocks always have one).
+ */
+export type DraftSegment = Segment & {
+  readonly from?: string
+  readonly to?: string
+  readonly role?: SegmentRole
+}
 
 export interface OutlineRef {
   readonly segment: string
@@ -56,6 +102,11 @@ export class DraftBuilder {
   private readonly points = new Map<string, Vec>()
   private readonly segments = new Map<string, DraftSegment>()
   private readonly pieces = new Map<string, Piece>()
+
+  /** Tag segments with their role in the garment (see SegmentRole). */
+  role(role: SegmentRole, ...ids: readonly string[]): void {
+    for (const id of ids) this.segments.set(id, { ...this.seg(id), role })
+  }
 
   /** Register a named construction point. Names are unique. */
   point(name: string, p: Vec): Vec {
@@ -268,6 +319,6 @@ export const piecePath = (draft: Draft, pieceId: string): Path => {
   )
 }
 
-/** Drop the from/to tags, returning a bare Segment. */
+/** Drop the from/to/role tags, returning a bare Segment. */
 export const stripMeta = (s: DraftSegment): Segment =>
   s.kind === 'line' ? line(s.id, s.p0, s.p1) : cubic(s.id, s.p0, s.p1, s.p2, s.p3)

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { SEGMENT_ROLES } from '../core'
 import { getTable } from '../data'
 import {
   BLOCKS,
@@ -72,4 +73,23 @@ describe('block registry', () => {
     expect(sanitizeBlockOptions(block, { length: 'knee' })).toEqual({ length: 'hip' })
     expect(pieceCut(block, 'front')).toEqual({ count: 1, material: 'Tela' })
   })
+
+  it.each(BLOCKS.map((b) => [b.id, b] as const))(
+    '%s: every outline segment has a role, in every option',
+    (_, block) => {
+      const variants = [
+        {},
+        ...block.options.flatMap((o) => o.choices.map((c) => ({ [o.key]: c.value }))),
+      ]
+      for (const options of variants) {
+        const draft = draftBlock(block, block.defaultSize, options)
+        for (const piece of draft.pieces)
+          for (const r of piece.outline) {
+            const role = draft.segments[r.segment].role
+            expect(role, `${piece.id} ${r.segment}`).toBeDefined()
+            expect(SEGMENT_ROLES).toContain(role)
+          }
+      }
+    },
+  )
 })

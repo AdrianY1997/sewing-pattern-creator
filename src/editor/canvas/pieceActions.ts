@@ -2,16 +2,21 @@
  * Piece actions shared by the canvas context menu, the right panel and the toolbar. Each action
  * appends operations to the log (one undo step) through the store.
  */
-import { splitPieceKey, type MirrorAxis, type PatternPiece } from '../../core'
+import {
+  splitPieceKey,
+  type MarkAnchor,
+  type MirrorAxis,
+  type PatternPiece,
+  type PieceMark,
+} from '../../core'
 import { useEditorStore } from '../store/editorStore'
-import { cachedPattern } from '../store/useDraft'
+import { statePattern } from '../store/useDraft'
 
 const store = () => useEditorStore.getState()
 
 /** Pieces of the current replayed pattern. */
 export const currentPatternPieces = (): readonly PatternPiece[] => {
-  const s = store()
-  return cachedPattern(s.blockId, s.size, s.blockOptions, s.operations).result.pattern.pieces
+  return statePattern(store()).result.pattern.pieces
 }
 
 /** Local segment id of the selected segment when it belongs to `pieceId` (Piezas view). */
@@ -81,5 +86,35 @@ export const pieceActions = {
     meta: { name?: string; cutCount?: number; fabric?: string; onFold?: boolean },
   ) {
     store().applyOps({ type: 'setPieceMeta', pieceId, ...meta })
+  } /** Seam allowance (mm) of some edges or all of them. */,
+  setAllowance(pieceId: string, segmentIds: readonly string[] | 'all', mm: number) {
+    store().applyOps({ type: 'setSeamAllowance', pieceId, segmentIds, mm })
+  },
+  /** Notch on an outline edge: atRatio when placed by clicking, atMm when typed. */
+  addNotch(
+    pieceId: string,
+    segmentId: string,
+    at: { readonly atRatio: number } | { readonly atMm: number },
+    double = false,
+  ) {
+    store().applyOps({ type: 'addNotch', pieceId, segmentId, ...at, ...(double && { double }) })
+    store().selectPiece(pieceId)
+  },
+  addText(pieceId: string, text: string, at: MarkAnchor) {
+    store().applyOps({ type: 'addTextMark', pieceId, text, at })
+  },
+  addButton(pieceId: string, at: MarkAnchor, diameterMm: number) {
+    store().applyOps({ type: 'addButton', pieceId, at, diameterMm })
+  },
+  removeMark(pieceId: string, mark: PieceMark) {
+    store().applyOps(
+      mark.kind === 'notch'
+        ? { type: 'removeNotch', pieceId, markId: mark.id }
+        : { type: 'removeMark', pieceId, markId: mark.id },
+    )
+  },
+  /** Back to the block's grainline. */
+  resetGrainline(pieceId: string) {
+    store().applyOps({ type: 'setGrainline', pieceId, angleDeg: 0, offset: { x: 0, y: 0 } })
   },
 }

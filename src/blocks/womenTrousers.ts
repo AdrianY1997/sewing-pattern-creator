@@ -397,6 +397,27 @@ export function draftWomenTrousers(
     },
   )
 
+  // =================== roles ===================
+  for (const p of [S.front, S.back]) {
+    b.role('waist', ...p.waist.filter((id) => !id.includes('dart')))
+    b.role('dart', ...p.waist.filter((id) => id.includes('dart')))
+    b.role('outseam', ...p.outseam)
+    b.role('hem', p.hem)
+    b.role('inseam', ...p.inseam)
+    b.role('crotch', ...p.crotch)
+  }
+  b.role('centerFront', S.front.cf)
+  b.role('centerBack', S.back.cb)
+  b.role(
+    'dart',
+    'front.dart.left',
+    'front.dart.right',
+    'back.dart1.left',
+    'back.dart1.right',
+    'back.dart2.left',
+    'back.dart2.right',
+  )
+
   return b.build()
 }
 

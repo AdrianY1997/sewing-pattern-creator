@@ -3,10 +3,13 @@ import { pieceCut, type AnyBlockDef } from '../../blocks'
 import { add, normalize, perp, scale as scaleVec, sub, type Vec } from '../../core'
 import type { LayerVisibility } from '../store/layers'
 import type { SizeOutline } from '../store/useDraft'
-import type { DraftRender, GrainlineRender, PieceRender } from './draftGeometry'
+import type { DraftRender, GrainlineRender, NotchRender, PieceRender } from './draftGeometry'
+import type { SeamRender } from './seamGeometry'
 
 export interface DraftLayersProps {
   readonly render: DraftRender
+  /** Cut lines of the extracted pieces (Costura layer); empty in the Trazo view. */
+  readonly seams: readonly SeamRender[]
   readonly block: AnyBlockDef
   /** Outlines of every size, for the Tallas layer (empty when hidden). */
   readonly sizes: readonly SizeOutline[]
@@ -36,6 +39,16 @@ function Grainline({ g, head }: { g: GrainlineRender; head: number }) {
       <line x1={g.from.x} y1={g.from.y} x2={g.to.x} y2={g.to.y} />
       <polygon points={arrow(g.from, dir)} />
       <polygon points={arrow(g.to, scaleVec(dir, -1))} />
+    </g>
+  )
+}
+
+function Notch({ n, testId }: { n: NotchRender; testId: string }) {
+  return (
+    <g className="notch" data-testid={testId} data-notch={n.id}>
+      {n.ticks.map(([a, b], i) => (
+        <line key={i} x1={a.x} y1={a.y} x2={b.x} y2={b.y} />
+      ))}
     </g>
   )
 }
@@ -105,7 +118,7 @@ function Selection({ piece, px }: { piece: PieceRender; px: number }) {
 
 /** Every canvas layer of a draft, in world units (mm). Hidden layers are not rendered at all. */
 export const DraftLayers = memo(function DraftLayers(props: DraftLayersProps) {
-  const { render, block, sizes, layers, selectedPieceId, selectedSegmentId, scale } = props
+  const { render, seams, block, sizes, layers, selectedPieceId, selectedSegmentId, scale } = props
   const { selectable, onSelectPiece, onSelectSegment } = props
   const px = 1 / scale
   const selected = render.pieces.find((p) => p.id === selectedPieceId)
@@ -128,7 +141,18 @@ export const DraftLayers = memo(function DraftLayers(props: DraftLayersProps) {
           ))}
         </g>
       )}
-      {layers.seam && <g className="layer-seam" data-testid="layer-seam" />}
+      {layers.seam && (
+        <g className="layer-seam" data-testid="layer-seam">
+          {seams.map((s) => (
+            <g key={s.pieceId} data-piece={s.pieceId}>
+              <path className="cut-line" data-testid="seam-line" data-piece={s.pieceId} d={s.d} />
+              {s.notches.map((n) => (
+                <Notch key={n.id} n={n} testId="seam-notch" />
+              ))}
+            </g>
+          ))}
+        </g>
+      )}
       {layers.outline && (
         <g className="layer-outline" data-testid="layer-outline">
           {render.pieces.map((p) => (
@@ -154,11 +178,31 @@ export const DraftLayers = memo(function DraftLayers(props: DraftLayersProps) {
             <Grainline key={g.id} g={g} head={9 * px} />
           ))}
           {render.notches.map((n) => (
-            <g key={n.id} className="notch" data-testid="notch" data-notch={n.id}>
-              {n.ticks.map(([a, b], i) => (
-                <line key={i} x1={a.x} y1={a.y} x2={b.x} y2={b.y} />
-              ))}
+            <Notch key={n.id} n={n} testId="notch" />
+          ))}
+          {render.buttons.map((b) => (
+            <g key={b.id} className="button-mark" data-testid="button-mark" data-mark={b.id}>
+              <circle cx={b.at.x} cy={b.at.y} r={b.r} />
+              <path
+                d={`M${b.at.x - b.r * 0.5} ${b.at.y}H${b.at.x + b.r * 0.5}M${b.at.x} ${b.at.y - b.r * 0.5}V${b.at.y + b.r * 0.5}`}
+              />
             </g>
+          ))}
+          {render.texts.map((t) => (
+            <text
+              key={t.id}
+              className="text-mark"
+              data-testid="text-mark"
+              data-mark={t.id}
+              x={t.at.x}
+              y={t.at.y}
+              fontSize={12 * px}
+              strokeWidth={3 * px}
+              textAnchor="middle"
+              dominantBaseline="middle"
+            >
+              {t.text}
+            </text>
           ))}
           {render.pieces.map((p) =>
             p.vertices.map((v, i) => (

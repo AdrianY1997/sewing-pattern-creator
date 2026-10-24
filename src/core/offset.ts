@@ -7,10 +7,13 @@
  * - Convex corners are mitred; a mitre longer than `miterLimit × max(d)` from the original corner
  *   is clipped square to the bisector. Concave corners are trimmed at the intersection of the
  *   neighbouring offset pieces. Unequal distances on a smooth joint produce a straight step.
+ * - Corners between a hem edge (`hemEdges`) and a neighbouring edge are "mirrored" (esquina
+ *   espejo, see mirroredHemCorner) so the turned-up hem allowance matches the neighbouring seam.
  * - Output ids: `${id}~off` (or `${id}~off.k` when a curve needed several pieces) and
  *   `${id}~join.k` for corner connectors.
  * Limitations: self-intersections between non-adjacent pieces (allowance wider than a short edge
- * or larger than the curvature radius on the inward side) are not removed.
+ * or larger than the curvature radius on the inward side) are not removed here; seamAllowancePath
+ * (./seam) removes them.
  */
 import {
   type CubicBezier,
@@ -21,7 +24,7 @@ import {
   nearestOnBezier,
   subBezier,
 } from './bezier'
-import { intersectSegments, lineLineParams } from './intersect'
+import { intersectSegments, lineBezierIntersections, lineLineParams } from './intersect'
 import {
   type Path,
   type Segment,
@@ -33,7 +36,7 @@ import {
   segmentLength,
   segmentTangent,
 } from './path'
-import { add, distance, dot, length, lerp, normalize, scale, sub, type Vec } from './vec'
+import { add, distance, dot, length, lerp, mirror, normalize, scale, sub, type Vec } from './vec'
 
 export type OffsetDistances = number | Readonly<Record<string, number>>
 
@@ -44,6 +47,11 @@ export interface OffsetOptions {
   readonly tolerance?: number
   /** Distance for segments missing from a distance record. Default 0. */
   readonly defaultDistance?: number
+  /**
+   * Ids of hem edges: a corner between a hem edge with a positive distance and a non-hem edge
+   * gets a mirrored corner (see mirroredHemCorner) instead of a mitre.
+   */
+  readonly hemEdges?: Iterable<string>
 }
 
 const TINY = 1e-9
@@ -161,6 +169,125 @@ const offsetBezier = (
   return out
 }
 
+// ---------- mirrored hem corner ----------
+
+/** Crossings of a segment with the infinite line ab: parameter on the segment and point. */
+const lineCrossings = (s: Segment, a: Vec, b: Vec): { t: number; point: Vec }[] => {
+  if (s.kind === 'cubic')
+    return lineBezierIntersections(a, b, s).map((h) => ({ t: h.t, point: h.point }))
+  const hit = lineLineParams(s.p0, s.p1, a, b)
+  return hit && hit.u >= -1e-9 && hit.u <= 1 + 1e-9
+    ? [{ t: Math.max(0, Math.min(1, hit.u)), point: hit.point }]
+    : []
+}
+
+/**
+ * Make the offset pieces of one edge end at `target`, a point on the tangent line at their end.
+ * Ahead of the current end: a final line is extended (a curve gets a straight connector, returned
+ * in `connectors`). Behind it: the pieces are trimmed where they cross the line `cut` (through the
+ * target), so curves are cut at their true crossing. Returns the new end point.
+ */
+const endPiecesAt = (
+  list: Segment[],
+  target: Vec,
+  cut: readonly [Vec, Vec],
+  connectors: [Vec, Vec][],
+): Vec => {
+  const last = list[list.length - 1]
+  const E = segEnd(last)
+  if (dot(sub(target, E), segmentTangent(last, 1)) >= -1e-9) {
+    if (last.kind === 'line') list[list.length - 1] = withEnd(last, target)
+    else connectors.push([E, target])
+    return target
+  }
+  for (let k = list.length - 1; k >= 0; k--) {
+    const hits = lineCrossings(list[k], cut[0], cut[1])
+    if (hits.length === 0) continue
+    const h = hits.reduce((x, y) => (y.t > x.t ? y : x))
+    list.splice(k, list.length - k, withEnd(subSegment(list[k], 0, h.t), h.point))
+    return h.point
+  }
+  connectors.push([E, target])
+  return target
+}
+
+/** Mirror image of endPiecesAt for the start of the pieces of an edge. */
+const startPiecesAt = (
+  list: Segment[],
+  target: Vec,
+  cut: readonly [Vec, Vec],
+  connectors: [Vec, Vec][],
+): Vec => {
+  const first = list[0]
+  const S = first.p0
+  if (dot(sub(target, S), segmentTangent(first, 0)) <= 1e-9) {
+    if (first.kind === 'line') list[0] = withStart(first, target)
+    else connectors.push([target, S])
+    return target
+  }
+  for (let k = 0; k < list.length; k++) {
+    const hits = lineCrossings(list[k], cut[0], cut[1])
+    if (hits.length === 0) continue
+    const h = hits.reduce((x, y) => (y.t < x.t ? y : x))
+    list.splice(0, k + 1, withStart(subSegment(list[k], h.t, 1), h.point))
+    return h.point
+  }
+  connectors.push([target, S])
+  return target
+}
+
+/**
+ * Mirrored hem corner ("esquina espejo"). A hem allowance is folded up along the hem line before
+ * the side seam is sewn, so its end must have the shape of the neighbouring seam allowance seen in
+ * a mirror. Construction at the corner V between a seam edge S (allowance s) and a hem edge H
+ * (allowance h > 0):
+ *   1. F, the fold line: the tangent line of H at V.
+ *   2. Ls, the seam allowance line: the tangent line of the offset of S at V (offset by s).
+ *   3. P1 = Ls ∩ F: the seam allowance line runs down to the fold line.
+ *   4. Ls' = Ls mirrored across F; P2 = Ls' ∩ Lh, where Lh is the hem allowance line (H offset
+ *      by h).
+ *   5. The cut line runs … S offset → P1 → P2 → H offset … (or the reverse when H comes first).
+ * Folding the allowance up along F maps the segment P1 P2 onto Ls, i.e. the hem allowance edge
+ * coincides with the seam allowance edge, whatever the angle between the seam and the hem (a
+ * square corner for a perpendicular seam, an inward slant for a flared skirt). Returns false when
+ * the construction degenerates (parallel lines, points beyond `reach`), so the caller mitres.
+ */
+const mirroredHemCorner = (
+  hemFirst: boolean,
+  seg: { readonly a: Segment; readonly b: Segment },
+  pieces: { a: Segment[]; b: Segment[] },
+  reach: number,
+): [Vec, Vec][] | null => {
+  const V = segEnd(seg.a)
+  const Ta = segmentTangent(seg.a, 1)
+  const Tb = segmentTangent(seg.b, 0)
+  const lastA = pieces.a[pieces.a.length - 1]
+  const firstB = pieces.b[0]
+  // Hem edge H and seam edge S, with a point on each allowance line.
+  const Th = hemFirst ? Ta : Tb
+  const Ts = hemFirst ? Tb : Ta
+  const onLs = hemFirst ? firstB.p0 : segEnd(lastA)
+  const onLh = hemFirst ? segEnd(lastA) : firstB.p0
+  const F: [Vec, Vec] = [V, add(V, Th)]
+  const Ls: [Vec, Vec] = [onLs, add(onLs, Ts)]
+  const p1 = lineLineParams(Ls[0], Ls[1], F[0], F[1])
+  if (!p1) return null
+  const LsM: [Vec, Vec] = [mirror(Ls[0], F[0], F[1]), mirror(Ls[1], F[0], F[1])]
+  const p2 = lineLineParams(LsM[0], LsM[1], onLh, add(onLh, Th))
+  if (!p2) return null
+  const P1 = p1.point
+  const P2 = p2.point
+  if (distance(P1, V) > reach || distance(P2, V) > reach) return null
+  // The hem side ends/starts at P2 (cut along Ls'), the seam side at P1 (cut along F); the two
+  // meet at P1, which lies on both F and Ls'.
+  const connectors: [Vec, Vec][] = []
+  const tail: [Vec, Vec][] = []
+  const A = endPiecesAt(pieces.a, hemFirst ? P2 : P1, hemFirst ? LsM : F, connectors)
+  const B = startPiecesAt(pieces.b, hemFirst ? P1 : P2, hemFirst ? F : LsM, tail)
+  connectors.push([A, P1], [P1, B], ...tail)
+  return connectors
+}
+
 // ---------- path offset ----------
 
 /**
@@ -173,6 +300,7 @@ export const offsetPath = (
   options: OffsetOptions = {},
 ): Path => {
   const { miterLimit = 4, tolerance = 0.02, defaultDistance = 0 } = options
+  const hems = new Set(options.hemEdges ?? [])
   if (!input.closed) throw new Error('offsetPath: path must be closed')
   if (!isContinuous(input, 1e-3)) throw new Error('offsetPath: path is not continuous')
   const segs = input.segments.filter((s) => segmentLength(s) > TINY)
@@ -218,6 +346,20 @@ export const offsetPath = (
     const Ti = segmentTangent(segs[i], 1)
     const Tj = segmentTangent(segs[j], 0)
     const reach = miterLimit * Math.max(Math.abs(distOf(segs[i].id)), Math.abs(distOf(segs[j].id)))
+
+    const hemI = hems.has(segs[i].id)
+    const hemJ = hems.has(segs[j].id)
+    if (hemI !== hemJ && distOf((hemI ? segs[i] : segs[j]).id) > 0) {
+      const a = [...pi]
+      const b = [...pj]
+      const conns = mirroredHemCorner(hemI, { a: segs[i], b: segs[j] }, { a, b }, reach)
+      if (conns) {
+        pieces[i] = a
+        pieces[j] = b
+        for (const [p, q] of conns) connector(p, q)
+        continue
+      }
+    }
 
     if (distance(E, S) < 1e-7) {
       pj[0] = withStart(firstJ, E)

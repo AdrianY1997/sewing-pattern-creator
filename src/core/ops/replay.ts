@@ -4,8 +4,17 @@
  * issue, and the remaining operations still run. `replay` never throws.
  */
 import { stripMeta, type Draft, type DraftSegment, type OutlineRef, type PieceMark } from '../draft'
-import { mapSegment, segEnd, segmentBBox, unionBBox } from '../path'
-import { degToRad, distance, signedDistanceToLine, type Vec } from '../vec'
+import { mapSegment, segEnd, segmentBBox, segmentLength, unionBBox } from '../path'
+import {
+  add,
+  degToRad,
+  distance,
+  midpoint,
+  rotate,
+  scale,
+  signedDistanceToLine,
+  type Vec,
+} from '../vec'
 import {
   applyAffine,
   composeAffine,
@@ -14,9 +23,20 @@ import {
   rotationAbout,
   translation,
 } from './affine'
+import { isFoldEdge, outlineNormalAt, segmentAt } from './marks'
 import { KEY_SEP, bboxCentre, pieceWorldBBox, piecesWorldBBox } from './pattern'
 import {
+  DEFAULT_ALLOWANCE,
   DEFAULT_LAYOUT_GAP,
+  MAX_ALLOWANCE_MM,
+  type AddButtonOp,
+  type AddNotchOp,
+  type AddTextMarkOp,
+  type MarkAnchor,
+  type RemoveMarkOp,
+  type RemoveNotchOp,
+  type SetGrainlineOp,
+  type SetSeamAllowanceOp,
   type AutoLayoutOp,
   type CutOnFoldOp,
   type DuplicatePieceOp,
@@ -94,6 +114,12 @@ function extractFromDraft(ctx: Ctx, pieceId: string): PatternPiece {
   for (const [name, at] of Object.entries(ctx.draft.points))
     if (named.has(name) || ends.some((e) => distance(e, at) < 1e-3)) points[name] = at
   const defaults = ctx.options.pieceDefaults?.(pieceId) ?? {}
+  const { seamMm, hemMm } = ctx.options.allowance ?? DEFAULT_ALLOWANCE
+  const allowance: Record<string, number> = {}
+  for (const r of src.outline) {
+    const role = segments[r.segment].role
+    allowance[r.segment] = role === 'fold' ? 0 : role === 'hem' ? hemMm : seamMm
+  }
   return structuredClone({
     id: pieceId,
     sourcePieceId: pieceId,
@@ -107,6 +133,8 @@ function extractFromDraft(ctx: Ctx, pieceId: string): PatternPiece {
     marks: src.marks,
     points,
     fold: null,
+    allowance,
+    grain: { angleDeg: 0, offset: { x: 0, y: 0 } },
     transform: IDENTITY,
   })
 }
@@ -245,6 +273,7 @@ function cutOnFold(pieces: readonly PatternPiece[], op: CutOnFoldOp): PatternPie
       id: suffixed(s.id),
       ...(from !== undefined && { from }),
       ...(to !== undefined && { to }),
+      ...(s.role !== undefined && { role: s.role }),
     } as DraftSegment
   }
   for (const s of Object.values(piece.segments)) if (!runIds.has(s.id)) add(s)
@@ -278,6 +307,13 @@ function cutOnFold(pieces: readonly PatternPiece[], op: CutOnFoldOp): PatternPie
   for (const [name, at] of Object.entries(piece.points))
     if (!onAxis(at)) points[suffixed(name)] = m(at)
 
+  const allowance: Record<string, number> = {}
+  for (const r of half) {
+    const d = piece.allowance[r.segment] ?? 0
+    allowance[r.segment] = d
+    allowance[suffixed(r.segment)] = d
+  }
+
   const runStart = (r: OutlineRef) => {
     const s = stripMeta(piece.segments[r.segment])
     return r.reversed ? segEnd(s) : s.p0
@@ -293,6 +329,7 @@ function cutOnFold(pieces: readonly PatternPiece[], op: CutOnFoldOp): PatternPie
     internalLines,
     marks,
     points,
+    allowance,
     onFold: false,
     fold: { from: runStart(run[0]), to: runEnd(run[run.length - 1]) },
   })
@@ -326,6 +363,168 @@ function setPieceMeta(pieces: readonly PatternPiece[], op: SetPieceMetaOp): Patt
   }
   if (op.onFold !== undefined) next.onFold = op.onFold === true
   return replacePiece(pieces, next)
+}
+
+// ---------- seam allowance ----------
+
+function setSeamAllowance(pieces: readonly PatternPiece[], op: SetSeamAllowanceOp): PatternPiece[] {
+  const piece = findPiece(pieces, op.pieceId)
+  if (typeof op.mm !== 'number' || !Number.isFinite(op.mm) || op.mm < 0 || op.mm > MAX_ALLOWANCE_MM)
+    fail(`Margen no válido: debe estar entre 0 y ${MAX_ALLOWANCE_MM} mm`)
+  const edges = piece.outline.map((r) => r.segment)
+  let ids: readonly string[]
+  if (op.segmentIds === 'all') ids = edges
+  else if (Array.isArray(op.segmentIds) && op.segmentIds.length > 0) {
+    for (const id of op.segmentIds)
+      if (!edges.includes(id)) fail(`"${String(id)}" no es un borde de la pieza "${piece.id}"`)
+    ids = op.segmentIds
+  } else return fail('Faltan los bordes del margen')
+  const allowance = { ...piece.allowance }
+  // Fold edges stay at 0 (they are not cut).
+  for (const id of ids) allowance[id] = isFoldEdge(piece, id) ? 0 : op.mm
+  return replacePiece(pieces, { ...piece, allowance })
+}
+
+// ---------- marks ----------
+
+const markIdOf = (piece: PatternPiece, id: string): string => {
+  if (!id || id.includes(KEY_SEP)) fail(`Id de marca no válido: "${id}"`)
+  if (piece.marks.some((m) => m.id === id)) fail(`Ya existe una marca "${id}"`)
+  return id
+}
+
+const outlineSegment = (piece: PatternPiece, segmentId: unknown): DraftSegment => {
+  if (typeof segmentId !== 'string' || !segmentId) return fail('Falta el borde')
+  if (!piece.outline.some((r) => r.segment === segmentId))
+    fail(`"${segmentId}" no es un borde de la pieza "${piece.id}"`)
+  return piece.segments[segmentId]
+}
+
+function addNotch(pieces: readonly PatternPiece[], op: AddNotchOp): PatternPiece[] {
+  const piece = findPiece(pieces, op.pieceId)
+  const s = outlineSegment(piece, op.segmentId)
+  const len = segmentLength(stripMeta(s))
+  let at: number
+  if (op.atRatio !== undefined) {
+    if (!Number.isFinite(op.atRatio) || op.atRatio < 0 || op.atRatio > 1)
+      fail('Posición del piquete no válida')
+    at = op.atRatio * len
+  } else if (op.atMm !== undefined) {
+    if (!Number.isFinite(op.atMm) || op.atMm < 0) fail('Posición del piquete no válida')
+    if (op.atMm > len + 1e-6)
+      fail(
+        `El piquete (${op.atMm} mm) queda fuera del borde "${op.segmentId}" (${len.toFixed(1)} mm)`,
+      )
+    at = op.atMm
+  } else return fail('Falta la posición del piquete')
+  const mark: PieceMark = {
+    id: markIdOf(piece, op.id),
+    kind: 'notch',
+    at: segmentAt(s, at).point,
+    data: {
+      count: op.double ? 2 : 1,
+      segment: op.segmentId,
+      ...(op.atRatio !== undefined ? { atRatio: op.atRatio } : { atMm: op.atMm }),
+    },
+  }
+  return replacePiece(pieces, { ...piece, marks: [...piece.marks, mark] })
+}
+
+function removeMark(
+  pieces: readonly PatternPiece[],
+  op: RemoveMarkOp | RemoveNotchOp,
+  kind?: string,
+): PatternPiece[] {
+  const piece = findPiece(pieces, op.pieceId)
+  const mark = piece.marks.find((m) => m.id === op.markId)
+  if (!mark) return fail(`La marca "${String(op.markId)}" no existe en la pieza "${piece.id}"`)
+  if (mark.kind === 'grainline') fail('El hilo no se puede eliminar')
+  if (kind && mark.kind !== kind) fail(`La marca "${mark.id}" no es un piquete`)
+  return replacePiece(pieces, { ...piece, marks: piece.marks.filter((m) => m !== mark) })
+}
+
+/** Position of a mark anchor in the piece's local frame. */
+const anchorPoint = (piece: PatternPiece, at: MarkAnchor): Vec => {
+  if (typeof at !== 'object' || at === null) return fail('Falta la posición de la marca')
+  if ('pointName' in at)
+    return (
+      piece.points[at.pointName] ??
+      fail(`El punto "${at.pointName}" no existe en la pieza "${piece.id}"`)
+    )
+  const s =
+    piece.segments[at.segmentId] ??
+    fail(`El segmento "${String(at.segmentId)}" no existe en la pieza "${piece.id}"`)
+  if (!Number.isFinite(at.ratio) || at.ratio < 0 || at.ratio > 1) fail('Posición no válida')
+  if (!Number.isFinite(at.offsetMm)) fail('Separación no válida')
+  const len = at.ratio * segmentLength(stripMeta(s))
+  const { point, tangent } = segmentAt(s, len)
+  // Positive offsets go into the piece (inward normal of an outline edge; left of internal lines).
+  const out = outlineNormalAt(piece, at.segmentId, len)
+  const inward = out ? scale(out, -1) : { x: -tangent.y, y: tangent.x }
+  return add(point, scale(inward, at.offsetMm))
+}
+
+function addTextMark(pieces: readonly PatternPiece[], op: AddTextMarkOp): PatternPiece[] {
+  const piece = findPiece(pieces, op.pieceId)
+  if (typeof op.text !== 'string' || !op.text.trim()) fail('Falta el texto')
+  const mark: PieceMark = {
+    id: markIdOf(piece, op.id),
+    kind: 'text',
+    at: anchorPoint(piece, op.at),
+    data: { text: op.text },
+  }
+  return replacePiece(pieces, { ...piece, marks: [...piece.marks, mark] })
+}
+
+function addButton(pieces: readonly PatternPiece[], op: AddButtonOp): PatternPiece[] {
+  const piece = findPiece(pieces, op.pieceId)
+  if (!Number.isFinite(op.diameterMm) || op.diameterMm <= 0 || op.diameterMm > 100)
+    fail('Diámetro del botón no válido')
+  const mark: PieceMark = {
+    id: markIdOf(piece, op.id),
+    kind: 'button',
+    at: anchorPoint(piece, op.at),
+    data: { diameterMm: op.diameterMm },
+  }
+  return replacePiece(pieces, { ...piece, marks: [...piece.marks, mark] })
+}
+
+/** Normalise degrees to (−180, 180]. */
+const wrapDeg = (d: number) => {
+  const r = ((((d + 180) % 360) + 360) % 360) - 180
+  return r === -180 ? 180 : r
+}
+
+function setGrainline(
+  ctx: Ctx,
+  pieces: readonly PatternPiece[],
+  op: SetGrainlineOp,
+): PatternPiece[] {
+  const piece = findPiece(pieces, op.pieceId)
+  const mark = piece.marks.find(
+    (m) => m.kind === 'grainline' && typeof m.data?.segment === 'string',
+  )
+  if (!mark) return fail(`La pieza "${piece.id}" no tiene hilo`)
+  const segId = mark.data?.segment as string
+  if (op.angleDeg !== undefined && !Number.isFinite(op.angleDeg)) fail('Ángulo no válido')
+  if (op.offset !== undefined && !finiteVec(op.offset)) fail('Desplazamiento no válido')
+  const grain = {
+    angleDeg: wrapDeg(op.angleDeg ?? piece.grain.angleDeg),
+    offset: op.offset ? { x: op.offset.x, y: op.offset.y } : piece.grain.offset,
+  }
+  // Rebuilt from the block's grainline: the setting is absolute, not cumulative.
+  const base = ctx.draft.segments[segId] ?? piece.segments[segId]
+  if (!base || base.kind !== 'line') return fail('El hilo no es una recta')
+  const m = midpoint(base.p0, base.p1)
+  const theta = degToRad(grain.angleDeg)
+  const place = (p: Vec) => add(rotate(p, theta, m), grain.offset)
+  const seg: DraftSegment = { ...base, p0: place(base.p0), p1: place(base.p1) }
+  return replacePiece(pieces, {
+    ...piece,
+    grain,
+    segments: { ...piece.segments, [segId]: seg },
+    marks: piece.marks.map((x) => (x === mark ? { ...x, at: add(m, grain.offset) } : x)),
+  })
 }
 
 // ---------- layout ----------
@@ -390,6 +589,20 @@ function applyOne(ctx: Ctx, pieces: readonly PatternPiece[], op: Operation): Pat
       return setPieceMeta(pieces, op)
     case 'autoLayout':
       return autoLayout(pieces, op)
+    case 'setSeamAllowance':
+      return setSeamAllowance(pieces, op)
+    case 'addNotch':
+      return addNotch(pieces, op)
+    case 'removeNotch':
+      return removeMark(pieces, op, 'notch')
+    case 'removeMark':
+      return removeMark(pieces, op)
+    case 'setGrainline':
+      return setGrainline(ctx, pieces, op)
+    case 'addTextMark':
+      return addTextMark(pieces, op)
+    case 'addButton':
+      return addButton(pieces, op)
     default:
       return fail(`Operación desconocida "${String((op as { type?: unknown }).type)}"`)
   }

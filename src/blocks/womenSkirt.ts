@@ -294,6 +294,16 @@ export function draftWomenSkirt(
     },
   )
 
+  // =================== roles ===================
+  const SK = WOMEN_SKIRT_SEAMS
+  b.role('centerBack', SK.back.cb)
+  b.role('centerFront', SK.front.cf)
+  b.role('hem', SK.back.hem, SK.front.hem)
+  b.role('side', ...SK.back.side, ...SK.front.side)
+  b.role('waist', ...SK.back.waist, ...SK.front.waist)
+  b.role('dart', SK.back.dartOpening, SK.front.dartOpening)
+  b.role('dart', 'back.dart.left', 'back.dart.right', 'front.dart.left', 'front.dart.right')
+
   return b.build()
 }
 

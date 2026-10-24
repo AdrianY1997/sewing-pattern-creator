@@ -90,7 +90,8 @@ test('context menu: cut on fold on the centre back, rotate and duplicate', async
   await expect(page.getByTestId('fold-line')).toHaveCount(1)
 
   const before = await box(page, 'front')
-  await outline(page, 'front').click({ button: 'right', position: { x: 60, y: 200 } })
+  // A dart line of the same piece may lie under that point: it opens the same menu.
+  await outline(page, 'front').click({ button: 'right', position: { x: 60, y: 200 }, force: true })
   await page.getByTestId('piece-menu').getByRole('menuitem', { name: 'Rotar 90°' }).click()
   const after = await box(page, 'front')
   // A 90° turn swaps the width and the height of the bounding box.
