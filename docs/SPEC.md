@@ -188,6 +188,7 @@ Cada bloque es una función pura `draft(medidas, opciones) → Draft` en TypeScr
 - **F0:** Andamiaje (Vite/React/TS, Vitest, Playwright, lint, estructura de carpetas) y CI/CD a GitHub Pages (`deploy.yml`).
 - **F1:** Datos de medidas + motor geométrico + bloque cuerpo base mujer.
 - **F2:** Editor de lienzo (zoom/paneo, capas, selección, snap, calibración y vista 1:1).
+- Layout y estilo según docs/UI.md (referencia: docs/example-layout.png)
 - **F3:** Resto de bloques (manga, falda, pantalón mujer, bloques hombre, pantalón hombre).
 - **F4:** Operaciones de edición (separar, espejar, pinzas, márgenes, marcas, deshacer).
 - **F5:** Reglas de patronaje a tamaño real.
