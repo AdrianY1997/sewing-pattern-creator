@@ -44,6 +44,8 @@ export type LeftTab = 'design' | 'measurements' | 'settings'
  * - curve: drag the handles of the selected curve, or drag to draw a curved internal line
  * - line: drag to draw a straight internal line
  * - text / button: a click inside a piece places a text mark / a button
+ * - ruler: "Reglas", a real-size ruler on the canvas (place, rotate, slide, align, trace)
+ * - measure: "Medir", distances between points and lengths along segments
  */
 export type Tool =
   | 'select'
@@ -57,6 +59,8 @@ export type Tool =
   | 'line'
   | 'text'
   | 'button'
+  | 'ruler'
+  | 'measure'
 
 /** "Trasladar" of the Pinzas panel waiting for the click on the target edge. */
 export interface PendingDartTransfer {
@@ -142,8 +146,11 @@ export interface EditorActions {
   setDrawer(drawer: Drawer | null): void
   setTool(tool: Tool): void
   setLeftTab(tab: LeftTab): void
-  /** Append operations as one undo step; ids are assigned here. */
-  applyOps(ops: OperationInput | readonly OperationInput[]): void
+  /**
+   * Append operations as one undo step; ids are assigned here (an operation that already has one,
+   * because a later operation of the same step refers to it, keeps it).
+   */
+  applyOps(ops: OperationInput | Operation | readonly (OperationInput | Operation)[]): void
   undo(): void
   redo(): void
   setViewMode(mode: ViewMode): void
@@ -344,10 +351,14 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
   setLeftTab: (leftTab) => set({ leftTab }),
 
   applyOps: (input) => {
-    const list: readonly OperationInput[] = Array.isArray(input) ? input : [input as OperationInput]
+    const list: readonly (OperationInput | Operation)[] = Array.isArray(input)
+      ? input
+      : [input as OperationInput]
     if (list.length === 0) return
     const { operations, undoStack } = get()
-    const added = list.map((o) => ({ ...o, id: newOpId() }) as Operation)
+    const added = list.map(
+      (o) => ({ ...o, id: 'id' in o && typeof o.id === 'string' ? o.id : newOpId() }) as Operation,
+    )
     set({
       operations: [...operations, ...added],
       undoStack: [...undoStack, operations],

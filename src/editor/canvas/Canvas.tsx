@@ -24,6 +24,8 @@ import {
   type OperationInput,
   type Vec,
 } from '../../core'
+import { useMeasureTool } from '../measure/useMeasureTool'
+import { useRulerTool } from '../rulers/useRulerTool'
 import { useEditorStore, type Tool } from '../store/editorStore'
 import {
   allowanceDefaults,
@@ -323,6 +325,23 @@ export function Canvas() {
       : null
   }
 
+  // Reglas (real-size rulers) and Medir work in both views.
+  const rulerTool = useRulerTool({
+    active: tool === 'ruler' && !spaceDown,
+    viewportRef,
+    view,
+    size,
+    snapAt,
+  })
+  const measureTool = useMeasureTool({
+    active: tool === 'measure' && !spaceDown,
+    draft: display.draft,
+    render: display.render,
+    view,
+    size,
+    snapAt,
+  })
+
   const beginDrag = (ev: PointerEvent<HTMLDivElement>, d: Drag) => {
     ev.preventDefault()
     ev.stopPropagation()
@@ -335,6 +354,8 @@ export function Canvas() {
    * transfer, curve handles, vertex drags, drawing lines that start on an edge).
    */
   const onPointerDownCapture = (ev: PointerEvent<HTMLDivElement>) => {
+    if (rulerTool.onPointerDownCapture(ev)) return
+    if (measureTool.onPointerDownCapture(ev, worldAt(ev))) return
     if (ev.button !== 0 || mode !== 'pieces' || spaceDown) return
     const start = worldAt(ev)
     if (!start) return
@@ -486,6 +507,7 @@ export function Canvas() {
 
   const onPointerMove = (ev: PointerEvent<HTMLDivElement>) => {
     handlers.onPointerMove(ev)
+    rulerTool.onPointerMove(ev)
     if (!drag || ev.pointerId !== drag.pointerId) return
     const p = worldAt(ev)
     if (!p) return
@@ -603,6 +625,7 @@ export function Canvas() {
   }
 
   const onPointerUp = (ev: PointerEvent<HTMLDivElement>) => {
+    if (rulerTool.onPointerUp(ev)) return
     if (!drag) return handlers.onPointerUp(ev)
     if (ev.currentTarget.hasPointerCapture(ev.pointerId))
       ev.currentTarget.releasePointerCapture(ev.pointerId)
@@ -657,7 +680,9 @@ export function Canvas() {
       ? `tool-${tool}`
       : mode === 'pieces' && (CROSSHAIR_TOOLS.includes(tool) || dartTransfer)
         ? 'tool-crosshair'
-        : ''
+        : tool === 'measure' && !spaceDown
+          ? 'tool-crosshair'
+          : rulerTool.cursorClass
   const px = 1 / view.scale
   const empty = mode === 'pieces' && pieces.length === 0
 
@@ -788,6 +813,8 @@ export function Canvas() {
                 })}
               </g>
             )}
+            {measureTool.layer}
+            {rulerTool.layer}
           </g>
           <g className="overlay" aria-hidden>
             {hovered.length > 0 && <HoverRing at={hovered[0].at} view={view} />}
@@ -808,6 +835,8 @@ export function Canvas() {
           </div>
         )}
         {mode === 'pieces' && !empty && <CanvasHint />}
+        {rulerTool.panel}
+        {measureTool.chip}
         <LayersPanel />
         <ZoomControl
           onZoomIn={() => zoomCentre(ZOOM_STEP)}

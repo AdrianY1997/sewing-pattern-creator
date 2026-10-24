@@ -352,6 +352,31 @@ export interface SplitPieceOp extends OpBase {
   readonly lineId: string
 }
 
+/**
+ * One cubic of a replacement curve in the CHORD FRAME of the segment: a point (x, y) stands for
+ * `start + x·chord + y·perp(chord)` where chord = end − start and perp turns it +90° (clockwise on
+ * screen). Coordinates are fractions of the chord length, so the curve keeps its shape relative to
+ * its endpoints in every size. `to` of the last cubic is ignored (it is the segment's end).
+ */
+export interface ChordBezier {
+  readonly c1: Vec
+  readonly c2: Vec
+  readonly to: Vec
+}
+
+/**
+ * Replaces the geometry of a segment (outline edge or internal line) by a chain of cubics between
+ * the same endpoints (F5, "Trazar" with a ruler). One cubic keeps the segment id; N > 1 cubics
+ * become `${id}~1`…`${id}~N` joined at the points `${id}~p1`…, with the same role and seam
+ * allowance; notches, marks and anchors keep their relative place along the whole chain.
+ */
+export interface ReplaceSegmentCurveOp extends OpBase {
+  readonly type: 'replaceSegmentCurve'
+  readonly pieceId: string
+  readonly segmentId: string
+  readonly beziers: readonly ChordBezier[]
+}
+
 export type Operation =
   | ExtractPieceOp
   | ExtractAllOp
@@ -380,6 +405,7 @@ export type Operation =
   | RemovePointOp
   | AddInternalLineOp
   | SplitPieceOp
+  | ReplaceSegmentCurveOp
 
 export type OperationType = Operation['type']
 

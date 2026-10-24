@@ -7,6 +7,7 @@ import {
   MousePointer2,
   Move,
   RotateCw,
+  RulerDimensionLine,
   Scaling,
   Scissors,
   Slash,
@@ -16,6 +17,7 @@ import {
 } from 'lucide-react'
 import { Fragment } from 'react'
 import { COMING_SOON } from '../layout/controls'
+import { RulerToolButton } from '../rulers/RulerToolButton'
 import { useEditorStore, type Tool, type ViewMode } from '../store/editorStore'
 import { useCurrentPattern } from '../store/useDraft'
 import { pieceActions, selectedEdgeOf } from './pieceActions'
@@ -114,6 +116,14 @@ const GROUPS: readonly (readonly ToolDef[])[] = [
       hint: 'Botón: clic dentro de una pieza separada para colocar un botón',
     },
   ],
+  [
+    {
+      label: 'Medir',
+      icon: RulerDimensionLine,
+      tool: 'measure',
+      hint: 'Medir: clic en dos puntos (distancia) o en un segmento (Mayús: tramos contiguos)',
+    },
+  ],
 ]
 
 const VIEWS: readonly { readonly mode: ViewMode; readonly label: string }[] = [
@@ -142,6 +152,7 @@ export function CanvasToolbar() {
       {GROUPS.map((group, gi) => (
         <Fragment key={gi}>
           {gi > 0 && <span className="tool-sep" aria-hidden />}
+          {gi === GROUPS.length - 1 && <RulerToolButton />}
           {group.map((t) => {
             const Icon = t.icon
             const enabled = t.tool !== undefined || (t.action !== undefined && target !== null)

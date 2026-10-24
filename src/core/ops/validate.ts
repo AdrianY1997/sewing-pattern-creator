@@ -4,6 +4,7 @@
  * pattern (a segment that does not exist, a notch past the edge) stay the business of `replay`,
  * which reports them as issues.
  */
+import { MAX_REPLACEMENT_BEZIERS } from './curves'
 import type { Operation, OperationType } from './types'
 
 type Rec = Record<string, unknown>
@@ -118,6 +119,20 @@ const VALIDATORS: { readonly [T in OperationType]: (o: Rec) => boolean } = {
     (o.kind === 'line' || o.kind === 'curve') &&
     opt(o.handles, isHandles),
   splitPiece: (o) => isStr(o.pieceId) && isStr(o.lineId),
+  replaceSegmentCurve: (o) =>
+    isStr(o.pieceId) &&
+    isStr(o.segmentId) &&
+    Array.isArray(o.beziers) &&
+    o.beziers.length > 0 &&
+    o.beziers.length <= MAX_REPLACEMENT_BEZIERS &&
+    o.beziers.every(
+      (b: unknown) =>
+        typeof b === 'object' &&
+        b !== null &&
+        isVec((b as Rec).c1) &&
+        isVec((b as Rec).c2) &&
+        isVec((b as Rec).to),
+    ),
 }
 
 /** Why a stored value is not a well-formed operation, or null when it is. */
