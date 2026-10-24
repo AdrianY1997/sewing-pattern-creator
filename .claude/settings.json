@@ -1,0 +1,65 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"E:/Trabajo/recall/adapters/claude/hooks/session-start.js\"",
+            "timeout": 5,
+            "x-recall-memory": true
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"E:/Trabajo/recall/adapters/claude/hooks/recall.js\"",
+            "timeout": 5,
+            "x-recall-memory": true
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"E:/Trabajo/recall/adapters/claude/hooks/track-edits.js\"",
+            "timeout": 5,
+            "x-recall-memory": true
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"E:/Trabajo/recall/adapters/claude/hooks/nudge.js\"",
+            "timeout": 5,
+            "x-recall-memory": true
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "Bash(git rev-parse*)",
+      "Bash(git --no-pager diff*)",
+      "Bash(git diff*)",
+      "Bash(git status*)",
+      "Bash(git log*)",
+      "Bash(git show*)",
+      "Bash(node \"E:/Trabajo/recall/bin/recall.js\" *)",
+      "Write(.recall/**)"
+    ]
+  }
+}
