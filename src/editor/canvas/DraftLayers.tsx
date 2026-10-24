@@ -11,11 +11,13 @@ export interface DraftLayersProps {
   readonly sizes: readonly { readonly size: string; readonly render: DraftRender }[]
   readonly layers: LayerVisibility
   readonly selectedPieceId: string | null
+  readonly selectedSegmentId: string | null
   /** Pixels per mm: screen-constant sizes (dots, text) are divided by it. */
   readonly scale: number
   /** False while panning tools are active: clicks on pieces then pan instead of selecting. */
   readonly selectable: boolean
   readonly onSelectPiece: (pieceId: string) => void
+  readonly onSelectSegment: (segmentId: string, pieceId: string | null) => void
 }
 
 const pts = (ps: readonly Vec[]) => ps.map((p) => `${p.x} ${p.y}`).join(' ')
@@ -99,9 +101,12 @@ function Selection({ piece, px }: { piece: PieceRender; px: number }) {
 
 /** Every canvas layer of a draft, in world units (mm). Hidden layers are not rendered at all. */
 export const DraftLayers = memo(function DraftLayers(props: DraftLayersProps) {
-  const { render, block, sizes, layers, selectedPieceId, scale, selectable, onSelectPiece } = props
+  const { render, block, sizes, layers, selectedPieceId, selectedSegmentId, scale } = props
+  const { selectable, onSelectPiece, onSelectSegment } = props
   const px = 1 / scale
   const selected = render.pieces.find((p) => p.id === selectedPieceId)
+  const visibleSegments = render.segments.filter((s) => layers[s.layer])
+  const selectedSegment = visibleSegments.find((s) => s.id === selectedSegmentId)
 
   return (
     <>
@@ -166,11 +171,36 @@ export const DraftLayers = memo(function DraftLayers(props: DraftLayersProps) {
           ))}
         </g>
       )}
+      {selectedSegment && (
+        <path
+          className="seg-selected"
+          data-testid="segment-selection"
+          data-segment={selectedSegment.id}
+          d={selectedSegment.d}
+        />
+      )}
+      {selectable && (
+        <g className="segment-hits" data-testid="segment-hits">
+          {visibleSegments.map((sg) => (
+            <path
+              key={sg.id}
+              className="seg-hit"
+              d={sg.d}
+              data-segment={sg.id}
+              onPointerDown={(ev) => {
+                if (ev.button !== 0) return
+                ev.stopPropagation()
+                onSelectSegment(sg.id, sg.pieceId ?? null)
+              }}
+            />
+          ))}
+        </g>
+      )}
       {layers.notes && (
         <g className="layer-notes" data-testid="layer-notes">
           {render.points.map(({ name, at }) => (
             <g key={name}>
-              <circle cx={at.x} cy={at.y} r={1.6 * px} />
+              <circle cx={at.x} cy={at.y} r={1.6 * px} data-point={name} />
               <text x={at.x + 4 * px} y={at.y - 4 * px} fontSize={11 * px} strokeWidth={3 * px}>
                 {name}
               </text>

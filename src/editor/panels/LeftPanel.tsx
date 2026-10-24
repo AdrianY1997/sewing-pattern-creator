@@ -14,8 +14,13 @@ const TABS: readonly { readonly id: LeftTab; readonly label: string }[] = [
 export function LeftPanel() {
   const tab = useEditorStore((s) => s.leftTab)
   const setTab = useEditorStore((s) => s.setLeftTab)
+  const drawer = useEditorStore((s) => s.drawer)
   return (
-    <aside className="left-panel" aria-label="Configuración del patrón">
+    <aside
+      className="left-panel drawer drawer-left"
+      aria-label="Configuración del patrón"
+      data-open={drawer === 'left' || undefined}
+    >
       <div className="tabs" role="tablist">
         {TABS.map((t) => (
           <button

@@ -29,10 +29,14 @@ const ITEMS: readonly NavItem[] = [
   { label: 'Proyectos', icon: FolderKanban, placeholder: COMING_SOON },
 ]
 
+/** Below this width the side panels are drawers (docs/UI.md §5; keep in sync with layout.css). */
+const NARROW_QUERY = '(max-width: 1199px)'
+
 const SETTINGS: NavItem = { label: 'Configuración', icon: Settings, tab: 'settings' }
 
 function RailButton({ item }: { readonly item: NavItem }) {
   const setLeftTab = useEditorStore((s) => s.setLeftTab)
+  const setDrawer = useEditorStore((s) => s.setDrawer)
   const Icon = item.icon
   return (
     <button
@@ -41,7 +45,12 @@ function RailButton({ item }: { readonly item: NavItem }) {
       aria-current={item.active ? 'page' : undefined}
       disabled={!!item.placeholder}
       title={item.placeholder ?? item.label}
-      onClick={() => item.tab && setLeftTab(item.tab)}
+      onClick={() => {
+        if (!item.tab) return
+        setLeftTab(item.tab)
+        // Narrow layout: the configuration panel is a drawer, open it.
+        if (window.matchMedia?.(NARROW_QUERY).matches) setDrawer('left')
+      }}
     >
       <Icon size={20} strokeWidth={1.75} aria-hidden />
       <span className="rail-label">{item.label}</span>

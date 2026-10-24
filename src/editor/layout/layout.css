@@ -220,19 +220,54 @@
   flex: 1;
 }
 
-/* ---------- narrower screens (UI.md §5, basic) ---------- */
+/* drawer toggles only exist in the narrow layout */
+.drawer-toggle {
+  display: none;
+}
+
+.drawer-backdrop {
+  display: none;
+}
+
+/* ---------- narrower screens (UI.md §5): side panels become drawers ---------- */
 @media (max-width: 1199px) {
   .editor {
-    grid-template-columns: 64px 235px minmax(0, 1fr);
+    grid-template-columns: 64px minmax(0, 1fr);
+  }
+
+  .drawer-toggle {
+    display: inline-grid;
+    flex: none;
+  }
+
+  .topbar > .drawer-toggle {
+    margin-left: var(--sp-2);
   }
 
   .brand {
     width: auto;
+    padding-left: var(--sp-3);
   }
 
   .brand > div,
   .rail-label {
     display: none;
+  }
+
+  .doc-title {
+    padding-left: var(--sp-3);
+  }
+
+  .topbar-actions {
+    gap: var(--sp-2);
+  }
+
+  .segmented {
+    margin: 0;
+  }
+
+  .segmented button {
+    padding: 0 var(--sp-2);
   }
 
   .rail-item {
@@ -242,5 +277,47 @@
 
   .workspace {
     grid-template-columns: minmax(0, 1fr) 260px;
+  }
+
+  .workspace > .canvas-card {
+    grid-column: 1 / -1;
+  }
+
+  /* drawers: fixed, slide in from the side, hidden (and out of the a11y tree) when closed */
+  .drawer {
+    position: fixed;
+    top: 66px;
+    bottom: 0;
+    z-index: 30;
+    width: min(320px, calc(100vw - 64px));
+    box-shadow: var(--shadow-float);
+    transition:
+      transform 0.18s ease,
+      visibility 0.18s;
+    visibility: hidden;
+  }
+
+  .drawer-left {
+    left: 64px;
+    transform: translateX(calc(-100% - 64px));
+  }
+
+  .drawer-right {
+    right: 0;
+    border-radius: 0;
+    transform: translateX(100%);
+  }
+
+  .drawer[data-open] {
+    transform: none;
+    visibility: visible;
+  }
+
+  .drawer-backdrop {
+    display: block;
+    position: fixed;
+    inset: 66px 0 0 64px;
+    z-index: 20;
+    background: rgb(17 26 51 / 0.25);
   }
 }

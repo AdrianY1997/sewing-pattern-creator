@@ -1,13 +1,16 @@
-import { useCallback, useLayoutEffect, useRef, useState, type RefObject } from 'react'
+import { useCallback, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react'
+import { segmentBBox, stripMeta, type BBox } from '../../core'
 import { useEditorStore } from '../store/editorStore'
 import { cachedDraft, useAllSizeDrafts, useCurrentBlock, useCurrentDraft } from '../store/useDraft'
 import { CanvasToolbar } from './CanvasToolbar'
+import { HoverRing, PointTooltip, SnapMarker } from './CanvasOverlay'
 import { CursorReadout } from './CursorReadout'
 import { DraftLayers } from './DraftLayers'
 import { Grid } from './Grid'
 import { LayersPanel } from './LayersPanel'
+import { buildSnapIndex, pointsAt, snap } from './snap'
 import { useViewportControls } from './useViewportControls'
-import { ZOOM_STEP, fitBBox, type Size, type ViewTransform } from './viewTransform'
+import { ZOOM_STEP, centreOn, fitBBox, type Size, type ViewTransform } from './viewTransform'
 import { ZoomControl } from './ZoomControl'
 import './canvas.css'
 
@@ -31,13 +34,16 @@ export function Canvas() {
   const viewportRef = useRef<HTMLDivElement>(null)
   const size = useElementSize(viewportRef)
   const block = useCurrentBlock()
-  const { render } = useCurrentDraft()
+  const { draft, render } = useCurrentDraft()
   const view = useEditorStore((s) => s.view)
   const layers = useEditorStore((s) => s.layers)
   const showGrid = useEditorStore((s) => s.showGrid)
   const selectedPieceId = useEditorStore((s) => s.selectedPieceId)
   const tool = useEditorStore((s) => s.tool)
   const selectPiece = useEditorStore((s) => s.selectPiece)
+  const selectedSegmentId = useEditorStore((s) => s.selectedSegmentId)
+  const selectSegment = useEditorStore((s) => s.selectSegment)
+  const snapEnabled = useEditorStore((s) => s.snapEnabled)
   const sizes = useAllSizeDrafts(layers.sizes)
   const { cursor, panning, spaceDown, handlers } = useViewportControls(viewportRef)
 
@@ -62,6 +68,34 @@ export function Canvas() {
   }, [block.id, size, fitTo])
 
   const fit = () => size.width > 0 && fitTo(size)
+
+  /** Real size (1:1 with the calibration), centred on the selection or the whole draft. */
+  const realSize = () => {
+    if (size.width <= 0) return
+    const s = useEditorStore.getState()
+    const seg = s.selectedSegmentId ? draft.segments[s.selectedSegmentId] : undefined
+    const piece = render.pieces.find((p) => p.id === s.selectedPieceId)
+    const box: BBox = seg ? segmentBBox(stripMeta(seg)) : (piece?.bbox ?? render.bbox)
+    const centre = { x: (box.minX + box.maxX) / 2, y: (box.minY + box.maxY) / 2 }
+    s.setView(centreOn(centre, size, s.pxPerMm))
+  }
+
+  // Snap targets: named points plus the segments of the visible layers.
+  const snapIndex = useMemo(
+    () =>
+      buildSnapIndex(
+        render.points,
+        render.segments
+          .filter((sg) => layers[sg.layer])
+          .map((sg) => stripMeta(draft.segments[sg.id])),
+      ),
+    [draft, render, layers],
+  )
+  const tracking = cursor !== null && !panning
+  const snapped =
+    tracking && snapEnabled ? snap(snapIndex, cursor, { scale: view.scale, grid: showGrid }) : null
+  const hovered =
+    tracking && tool === 'select' && !spaceDown ? pointsAt(render.points, cursor, view.scale) : []
 
   const zoomCentre = (factor: number) =>
     useEditorStore.getState().zoomAt({ x: size.width / 2, y: size.height / 2 }, factor)
@@ -95,19 +129,27 @@ export function Canvas() {
               sizes={sizes}
               layers={layers}
               selectedPieceId={selectedPieceId}
+              selectedSegmentId={selectedSegmentId}
               scale={view.scale}
               selectable={tool === 'select' && !spaceDown}
               onSelectPiece={selectPiece}
+              onSelectSegment={selectSegment}
             />
           </g>
+          <g className="overlay" aria-hidden>
+            {hovered.length > 0 && <HoverRing at={hovered[0].at} view={view} />}
+            {snapped && <SnapMarker result={snapped} view={view} />}
+          </g>
         </svg>
+        {hovered.length > 0 && <PointTooltip points={hovered} view={view} />}
         <LayersPanel />
         <ZoomControl
           onZoomIn={() => zoomCentre(ZOOM_STEP)}
           onZoomOut={() => zoomCentre(1 / ZOOM_STEP)}
           onFit={fit}
+          onRealSize={realSize}
         />
-        <CursorReadout cursor={cursor} />
+        <CursorReadout cursor={snapped?.at ?? cursor} snapped={snapped !== null} />
       </div>
     </section>
   )

@@ -2,6 +2,8 @@ import {
   ChevronRight,
   CircleUser,
   Download,
+  PanelLeft,
+  PanelRight,
   Pencil,
   Redo2,
   Save,
@@ -25,6 +27,9 @@ export function TopBar() {
   const block = useCurrentBlock()
   const titleRef = useRef<HTMLInputElement>(null)
   const [saveState, setSaveState] = useState<SaveState>('idle')
+  const drawer = useEditorStore((s) => s.drawer)
+  const setDrawer = useEditorStore((s) => s.setDrawer)
+  const toggleDrawer = (d: 'left' | 'right') => setDrawer(drawer === d ? null : d)
 
   const save = () => {
     const done = (state: SaveState) => {
@@ -39,6 +44,15 @@ export function TopBar() {
 
   return (
     <header className="topbar">
+      <button
+        type="button"
+        className="icon-btn nav-icon-btn drawer-toggle"
+        aria-label="Panel de configuración"
+        aria-expanded={drawer === 'left'}
+        onClick={() => toggleDrawer('left')}
+      >
+        <PanelLeft size={20} />
+      </button>
       <div className="brand">
         <Scissors size={28} strokeWidth={1.75} aria-hidden />
         <div>
@@ -119,6 +133,15 @@ export function TopBar() {
         <span className="avatar is-placeholder" title={OUT_OF_V1} aria-hidden>
           <CircleUser size={30} strokeWidth={1.25} />
         </span>
+        <button
+          type="button"
+          className="icon-btn nav-icon-btn drawer-toggle"
+          aria-label="Panel de detalles"
+          aria-expanded={drawer === 'right'}
+          onClick={() => toggleDrawer('right')}
+        >
+          <PanelRight size={20} />
+        </button>
       </div>
     </header>
   )

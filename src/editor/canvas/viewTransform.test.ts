@@ -3,7 +3,9 @@ import {
   MAX_SCALE,
   MIN_SCALE,
   PX_PER_MM,
+  centreOn,
   fitBBox,
+  isRealSize,
   gridSpacing,
   panBy,
   screenToWorld,
@@ -77,5 +79,19 @@ describe('view transform', () => {
     expect(gridSpacing(10)).toEqual({ minor: 1, major: 10 })
     expect(gridSpacing(1.1)).toEqual({ minor: 10, major: 100 })
     expect(gridSpacing(0.2)).toEqual({ minor: 100, major: 1000 })
+  })
+
+  it('measures zoom against the calibrated px/mm and detects 1:1', () => {
+    expect(zoomPercent({ x: 0, y: 0, scale: 5 }, 5)).toBe(100)
+    expect(zoomPercent({ x: 0, y: 0, scale: 2.5 }, 5)).toBe(50)
+    expect(isRealSize({ x: 3, y: 4, scale: 5 }, 5)).toBe(true)
+    expect(isRealSize({ x: 0, y: 0, scale: 5.01 }, 5)).toBe(false)
+    expect(isRealSize({ x: 0, y: 0, scale: PX_PER_MM })).toBe(true)
+  })
+
+  it('centres a world point at a given scale', () => {
+    const c = centreOn({ x: 100, y: 50 }, { width: 800, height: 600 }, 4)
+    expect(worldToScreen(c, { x: 100, y: 50 })).toEqual({ x: 400, y: 300 })
+    expect(c.scale).toBe(4)
   })
 })

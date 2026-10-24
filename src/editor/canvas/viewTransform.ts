@@ -65,8 +65,23 @@ export const fitBBox = (box: BBox, size: Size, padding = 40): ViewTransform => {
   return { x: size.width / 2 - cx * scale, y: size.height / 2 - cy * scale, scale }
 }
 
-/** Zoom as a percentage of real size (100 % = 1 mm on screen per mm at 96 dpi). */
-export const zoomPercent = (v: ViewTransform): number => Math.round((v.scale / PX_PER_MM) * 100)
+/**
+ * Zoom as a percentage of real size: 100 % = `pxPerMm` screen px per mm (the calibrated factor,
+ * 96 dpi when uncalibrated).
+ */
+export const zoomPercent = (v: ViewTransform, pxPerMm = PX_PER_MM): number =>
+  Math.round((v.scale / pxPerMm) * 100)
+
+/** True when the view is exactly real size (1:1) for `pxPerMm`. */
+export const isRealSize = (v: ViewTransform, pxPerMm = PX_PER_MM): boolean =>
+  Math.abs(v.scale / pxPerMm - 1) < 1e-9
+
+/** View at `scale` with the world point `centre` in the middle of a viewport of `size`. */
+export const centreOn = (centre: Vec, size: Size, scale: number): ViewTransform => ({
+  x: size.width / 2 - centre.x * scale,
+  y: size.height / 2 - centre.y * scale,
+  scale,
+})
 
 /** Wheel delta (px) → zoom factor; one notch (100 px) zooms by ~1.2. */
 export const wheelZoomFactor = (deltaY: number): number => Math.exp(-deltaY * 0.0018)

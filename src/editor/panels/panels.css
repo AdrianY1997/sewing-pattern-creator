@@ -428,3 +428,214 @@
   color: var(--primary);
   font-size: var(--fs-xs);
 }
+
+/* ---------- selection inspector (F2b) ---------- */
+.inspector {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3) var(--sp-3);
+  border: 1px solid var(--primary-soft);
+  border-left: 3px solid var(--primary);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--primary-soft) 35%, var(--panel-bg));
+}
+
+.inspector-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  color: var(--primary);
+}
+
+.inspector-head .section-title {
+  flex: 1;
+  color: var(--text);
+}
+
+.inspector-head .icon-btn {
+  width: 24px;
+  height: 24px;
+}
+
+.inspector-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 3px var(--sp-3);
+  margin: 0;
+  font-size: var(--fs-sm);
+}
+
+.inspector-grid + .inspector-grid {
+  padding-top: var(--sp-2);
+  border-top: 1px solid var(--border);
+}
+
+.inspector-grid dt {
+  color: var(--text-muted);
+}
+
+.inspector-grid dd {
+  margin: 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.mono {
+  font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  font-size: var(--fs-xs);
+}
+
+/* ---------- modal + calibration dialog ---------- */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: var(--sp-4);
+  background: rgb(17 26 51 / 0.45);
+}
+
+.modal {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  width: min(1080px, 100%);
+  max-height: 100%;
+  overflow: auto;
+  padding: var(--sp-4) var(--sp-5) var(--sp-5);
+  border-radius: var(--radius-lg);
+  background: var(--panel-bg);
+  box-shadow: var(--shadow-float);
+  outline: none;
+}
+
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.modal-head h2 {
+  margin: 0;
+  font-size: var(--fs-lg);
+}
+
+.modal-actions {
+  display: flex;
+  gap: var(--sp-2);
+}
+
+.modal-actions .btn-soft {
+  width: auto;
+}
+
+.modal-actions .spacer {
+  flex: 1;
+}
+
+.segmented-light {
+  display: inline-flex;
+  align-self: flex-start;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.segmented-light button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  height: 30px;
+  padding: 0 var(--sp-4);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.segmented-light button[aria-selected='true'] {
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.calib-stage {
+  display: flex;
+  align-items: center;
+  min-height: 200px;
+  padding: var(--sp-4);
+  overflow: auto;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md);
+  background: var(--canvas-bg);
+}
+
+.calib-ruler-stage {
+  min-height: 80px;
+}
+
+.calib-ruler-stage path {
+  stroke: var(--text);
+  stroke-width: 1px;
+  fill: none;
+}
+
+.calib-card {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border: 2px solid var(--primary);
+  border-radius: 8px;
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.calib-handle {
+  position: absolute;
+  right: -9px;
+  bottom: -9px;
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--primary);
+  border-radius: 50%;
+  background: #fff;
+  cursor: nwse-resize;
+  touch-action: none;
+}
+
+.calib-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.calib-controls input {
+  flex: 1;
+  accent-color: var(--primary);
+}
+
+.calib-measure {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  font-size: 13px;
+}
+
+.calib-measure input {
+  width: 110px;
+  height: 34px;
+  padding: 0 var(--sp-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.calib-result {
+  margin: 0;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}

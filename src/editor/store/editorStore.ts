@@ -10,6 +10,12 @@ import {
 } from '../../blocks'
 import type { MeasurementSystem } from '../../data'
 import type { Vec } from '../../core'
+import {
+  DEFAULT_PX_PER_MM,
+  isValidPxPerMm,
+  loadCalibration,
+  saveCalibration,
+} from '../canvas/calibration'
 import { IDENTITY_VIEW, panBy, zoomAt, type ViewTransform } from '../canvas/viewTransform'
 import { DEFAULT_LAYERS, type LayerId, type LayerVisibility } from './layers'
 
@@ -25,6 +31,8 @@ export interface AdvancedOptions {
 
 export type LeftTab = 'design' | 'measurements' | 'settings'
 export type Tool = 'select' | 'pan'
+/** Side panel shown as a drawer on narrow screens (docs/UI.md §5). */
+export type Drawer = 'left' | 'right'
 
 export interface EditorData {
   readonly title: string
@@ -38,8 +46,19 @@ export interface EditorData {
   readonly showGrid: boolean
   readonly view: ViewTransform
   readonly selectedPieceId: string | null
+  /** Selected segment id (its piece, if any, is selected too). */
+  readonly selectedSegmentId: string | null
   readonly tool: Tool
   readonly leftTab: LeftTab
+  /** Snap the cursor to points, segments and the grid. */
+  readonly snapEnabled: boolean
+  /** Screen calibration: CSS px per real mm, the scale shown as 100 % / 1:1. */
+  readonly pxPerMm: number
+  /** True when pxPerMm comes from a calibration (not the 96 dpi fallback). */
+  readonly calibrated: boolean
+  readonly calibrationOpen: boolean
+  /** Open drawer on narrow screens (ignored by the wide layout). */
+  readonly drawer: Drawer | null
 }
 
 /** The part of the state saved by "Guardar". */
@@ -63,7 +82,15 @@ export interface EditorActions {
   setView(view: ViewTransform): void
   zoomAt(screenPt: Vec, factor: number): void
   panBy(dx: number, dy: number): void
+  /** Select a piece (clears the segment selection). */
   selectPiece(pieceId: string | null): void
+  /** Select a segment and its owning piece. */
+  selectSegment(segmentId: string | null, pieceId?: string | null): void
+  toggleSnap(): void
+  /** Store a calibration (persisted); null restores the 96 dpi fallback. */
+  setPxPerMm(pxPerMm: number | null): void
+  setCalibrationOpen(open: boolean): void
+  setDrawer(drawer: Drawer | null): void
   setTool(tool: Tool): void
   setLeftTab(tab: LeftTab): void
   loadSnapshot(snapshot: Partial<ProjectSnapshot>): void
@@ -95,10 +122,20 @@ const initialData = (): EditorData => {
     showGrid: true,
     view: IDENTITY_VIEW,
     selectedPieceId: null,
+    selectedSegmentId: null,
     tool: 'select',
     leftTab: 'design',
+    snapEnabled: true,
+    ...calibrationState(loadCalibration()),
+    calibrationOpen: false,
+    drawer: null,
   }
 }
+
+const calibrationState = (v: number | null) => ({
+  pxPerMm: v ?? DEFAULT_PX_PER_MM,
+  calibrated: v !== null,
+})
 
 export const selectSnapshot = (s: EditorData): ProjectSnapshot => ({
   title: s.title,
@@ -123,6 +160,7 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
       size: isBlockSize(block, size) ? size : block.defaultSize,
       blockOptions: defaultBlockOptions(block),
       selectedPieceId: null,
+      selectedSegmentId: null,
     })
   },
 
@@ -146,7 +184,17 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
   zoomAt: (screenPt, factor) => set({ view: zoomAt(get().view, screenPt, factor) }),
   panBy: (dx, dy) => set({ view: panBy(get().view, dx, dy) }),
 
-  selectPiece: (selectedPieceId) => set({ selectedPieceId }),
+  selectPiece: (selectedPieceId) => set({ selectedPieceId, selectedSegmentId: null }),
+  selectSegment: (selectedSegmentId, pieceId = null) =>
+    set({ selectedSegmentId, selectedPieceId: selectedSegmentId ? pieceId : null }),
+  toggleSnap: () => set({ snapEnabled: !get().snapEnabled }),
+  setPxPerMm: (v) => {
+    if (v !== null && !isValidPxPerMm(v)) return
+    saveCalibration(v)
+    set(calibrationState(v))
+  },
+  setCalibrationOpen: (calibrationOpen) => set({ calibrationOpen }),
+  setDrawer: (drawer) => set({ drawer }),
   setTool: (tool) => set({ tool }),
   setLeftTab: (leftTab) => set({ leftTab }),
 
@@ -167,6 +215,7 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
       advanced: { ...DEFAULT_ADVANCED, ...snap.advanced },
       notes: typeof snap.notes === 'string' ? snap.notes : '',
       selectedPieceId: null,
+      selectedSegmentId: null,
     })
   },
 

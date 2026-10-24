@@ -6,6 +6,7 @@ import { OUT_OF_V1 } from '../layout/controls'
 import { useEditorStore } from '../store/editorStore'
 import { useCurrentBlock, useCurrentDraft } from '../store/useDraft'
 import { PieceThumbnail } from './PieceThumbnail'
+import { SelectionInspector } from './SelectionInspector'
 
 const SEX_LABEL = { female: 'Mujer', male: 'Hombre' } as const
 
@@ -98,10 +99,15 @@ export function DetailsPanel() {
   const { render } = useCurrentDraft()
   const title = useEditorStore((s) => s.title)
   const size = useEditorStore((s) => s.size)
+  const drawer = useEditorStore((s) => s.drawer)
   const sizeLabel = getTable(block.system).sizes.find((s) => s.id === size)?.label ?? size
 
   return (
-    <aside className="card details-panel" aria-label="Detalles del patrón">
+    <aside
+      className="card details-panel drawer drawer-right"
+      aria-label="Detalles del patrón"
+      data-open={drawer === 'right' || undefined}
+    >
       <h2 className="card-title">
         <FileText size={18} aria-hidden />
         Detalles del patrón
@@ -117,6 +123,7 @@ export function DetailsPanel() {
           </div>
         </div>
       </div>
+      <SelectionInspector />
       <SizeChips />
       <PieceList />
       <NotesSection />

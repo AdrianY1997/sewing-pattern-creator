@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { draftBlock, getBlock } from '../../blocks'
-import { buildDraftRender, classifyInternal, polygonCentroid } from './draftGeometry'
+import { pathBBox, piecePath, segmentLength } from '../../core'
+import { measureWomenBodice } from '../../blocks/womenBodice'
+import { buildDraftRender, classifyInternal, pieceMetrics, polygonCentroid } from './draftGeometry'
 
 describe('draft render data', () => {
   const draft = draftBlock(getBlock('women-bodice'), '10')
@@ -44,5 +46,29 @@ describe('draft render data', () => {
     ]
     expect(polygonCentroid(sq)).toEqual({ x: 2, y: 1 })
     expect(polygonCentroid([...sq].reverse())).toEqual({ x: 2, y: 1 })
+  })
+
+  it('lists every selectable segment with its layer and piece', () => {
+    const front = draft.pieces.find((p) => p.id === 'front')!
+    const outline = r.segments.filter((s) => s.pieceId === 'front' && s.layer === 'outline')
+    expect(outline.map((s) => s.id)).toEqual(front.outline.map((o) => o.segment))
+    expect(r.segments.some((s) => s.layer === 'darts' && /dart/i.test(s.id))).toBe(true)
+    expect(r.segments.some((s) => s.layer === 'guides' && s.id === 'c.chest')).toBe(true)
+    expect(r.segments.some((s) => /grain/.test(s.id))).toBe(false)
+  })
+
+  it('measures perimeter, area and armhole of a piece', () => {
+    const m = pieceMetrics(draft, 'front')
+    const front = draft.pieces.find((p) => p.id === 'front')!
+    const sum = front.outline.reduce((acc, o) => acc + segmentLength(draft.segments[o.segment]), 0)
+    expect(m.perimeter).toBeCloseTo(sum, 9)
+    const box = pathBBox(piecePath(draft, 'front'))
+    const boxArea = (box.maxX - box.minX) * (box.maxY - box.minY)
+    expect(m.area).toBeGreaterThan(boxArea * 0.6)
+    expect(m.area).toBeLessThan(boxArea)
+    const bodice = measureWomenBodice(draft)
+    expect(m.armhole).toBeCloseTo(bodice.armhole.front, 6)
+    expect(pieceMetrics(draft, 'back').armhole).toBeCloseTo(bodice.armhole.back, 6)
+    expect(() => pieceMetrics(draft, 'nope')).toThrow()
   })
 })

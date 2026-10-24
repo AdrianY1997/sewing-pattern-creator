@@ -91,4 +91,45 @@ describe('editor store', () => {
     expect(st().size).toBe('10')
     expect(st().blockOptions).toEqual({ length: 'hip' })
   })
+
+  it('selects segments together with their piece', () => {
+    st().selectSegment('front.shoulder', 'front')
+    expect(st().selectedSegmentId).toBe('front.shoulder')
+    expect(st().selectedPieceId).toBe('front')
+    st().selectPiece('back')
+    expect(st().selectedSegmentId).toBeNull()
+    st().selectSegment('c.chest')
+    expect(st().selectedPieceId).toBeNull()
+    st().selectSegment('front.shoulder', 'front')
+    st().setBlock('women-bodice')
+    expect(st().selectedSegmentId).toBeNull()
+  })
+
+  it('toggles snap and stores the screen calibration', () => {
+    expect(st().snapEnabled).toBe(true)
+    st().toggleSnap()
+    expect(st().snapEnabled).toBe(false)
+    expect(st().pxPerMm).toBeCloseTo(PX_PER_MM, 12)
+    expect(st().calibrated).toBe(false)
+    st().setPxPerMm(5)
+    expect(st().pxPerMm).toBe(5)
+    expect(st().calibrated).toBe(true)
+    expect(localStorage.getItem('spc:calibration:pxPerMm')).toBe('5')
+    st().setPxPerMm(-1) // invalid: ignored
+    expect(st().pxPerMm).toBe(5)
+    st().reset() // reloads the stored calibration
+    expect(st().pxPerMm).toBe(5)
+    st().setPxPerMm(null)
+    expect(st().pxPerMm).toBeCloseTo(PX_PER_MM, 12)
+    expect(localStorage.getItem('spc:calibration:pxPerMm')).toBeNull()
+  })
+
+  it('opens one drawer at a time', () => {
+    st().setDrawer('left')
+    expect(st().drawer).toBe('left')
+    st().setDrawer('right')
+    expect(st().drawer).toBe('right')
+    st().setDrawer(null)
+    expect(st().drawer).toBeNull()
+  })
 })
