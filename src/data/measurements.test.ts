@@ -53,12 +53,30 @@ describe('table integrity', () => {
     expect(t.complementary.filter((r) => r.derived).map((r) => r.key)).toEqual(['thigh', 'knee'])
     for (const r of t.complementary) expect(r.method.length).toBeGreaterThan(0)
   })
-  it('men: SPEC §3.2 rows only (no complementary yet)', () => {
+  it('men: SPEC §3.2 rows plus §3.4.2 complementary rows', () => {
     const t = getTable('es-men-easd')
     expect(t.sex).toBe('male')
     expect(t.sizes.map((s) => s.id)).toEqual(['40', '42', '44', '46', '48', '50', '52', '54'])
     expect(t.rows).toHaveLength(15)
-    expect(t.complementary).toHaveLength(0)
+    expect(t.complementary.map((r) => r.key)).toEqual([
+      'neck',
+      'shoulderLength',
+      'halfChestWidth',
+      'upperArm',
+      'wrist',
+      'shirtLength',
+      'thigh',
+    ])
+    expect(t.complementary.filter((r) => r.derived).map((r) => r.key)).toEqual([
+      'upperArm',
+      'shirtLength',
+    ])
+    for (const r of t.complementary) {
+      expect(r.valuesCm).toHaveLength(8)
+      expect(r.method.length).toBeGreaterThan(0)
+    }
+    expect(t.complementary.find((r) => r.key === 'wrist')?.valuesCm[4]).toBe(17.6)
+    expect(t.complementary.find((r) => r.key === 'thigh')?.valuesCm[7]).toBe(61.7)
   })
 })
 

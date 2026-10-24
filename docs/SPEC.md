@@ -13,6 +13,7 @@ App para trazar patrones de costura base (patronaje industrial) en todas las tal
 - PDF: pdf-lib (vectorial, 1 mm = 72/25.4 pt exacto). Exportación SVG nativa. DXF (AAMA/ASTM) queda para v2.
 - Tests: Vitest (motor geométrico y trazados), Playwright (E2E y verificación de exportes).
 - UI en español.
+- Despliegue: la app se publica en GitHub Pages (https://adriany1997.github.io/sewing-pattern-creator/) mediante GitHub Actions (`.github/workflows/deploy.yml`) en cada push a `main`, tras lint, typecheck, test y build. El `base` de Vite es `'/sewing-pattern-creator/'` y el enrutado es por hash.
 - Estructura de carpetas:
   - `src/core`: geometría, sin React.
   - `src/blocks`: trazados paramétricos.
@@ -101,19 +102,23 @@ Notas: Aldrich da el tiro como altura sentada desde cintura natural; la cintura 
 
 #### 3.4.2 Hombre — complementarias (convención EASD: pecho/cintura/cadera = medias medidas; aquí cada fila indica su convención)
 
-No se encontró una tabla de patronaje masculino por tallas 40–54 accesible y legible (Ottobre 46–60 es PDF protegido/ilegible desde la herramienta; la tabla de Tevipa/Como cubrir un cuerpo es una imagen; el cuadro masculino de Aldrich no está disponible en línea). Por ello TODAS las filas siguientes son derivadas a partir de la propia tabla 3.2 y de proporciones/gradaciones estándar de patronaje; no hay una fuente única. Referencias consultadas solo como contraste de orden de magnitud: https://www.ottobredesign.com/wp/wp-content/uploads/OTTOBRE_tabla-para-anotar-las-medidas_hombre_ES.pdf (talla 48: hombro ≈ 14.3, cuello ≈ 40; lectura no confirmada) y https://tevipa.com/blog/tabla-de-medidas-de-caballero-largos-y-conformaciones/. Validar con las tablas EASD/Aldrich Menswear originales cuando se disponga de ellas.
+No existe en línea una única tabla masculina por tallas 40–54 con todas estas medidas; se combinan dos tablas métricas publicadas (en cm) y cada fila indica de cuál sale (revisado 23/10/2026):
+
+- **[OTT]** Ottobre Design, tabla "Men 46–60" (cm, tallas europeas 46–60 = pecho 92–120): https://www.ottobredesign.com/pages/men-46-60 (leída en la página HTML; el PDF "tabla para anotar" ya no está disponible, 404). Trae largo de hombro y contorno de cuello (también ancho de espalda y largo de espalda a cintura), pero NO muñeca, brazo ni muslo.
+- **[KER]** Gareth Kershaw, *Patternmaking for Menswear* (Laurence King, 2013), cap. 1 "Size charts", "Sample European body size chart" (EU34–EU44 = pecho 88–108 cm; medidas corporales tomadas con escáner 3D). Consultada a través de una copia de texto en línea del libro; las imágenes de las tablas están adjuntas en https://forum.seamly.io/t/patternmaking-for-menswear-by-gareth-kershaw/1773. Trae cuello (base), largo de hombro, ancho de espalda y de pecho, muñeca y muslo; NO trae contorno de brazo/bíceps ni largo de camisa.
+- **Correspondencia de tallas**: las tallas EASD 44–54 se emparejan con las columnas Kershaw/Ottobre por contorno de pecho (88, 92, 96, 100, 104, 108 cm = 2 × talla). Para las tallas 40 y 42 (pecho 80 y 84) ninguna fuente llega: se EXTRAPOLA linealmente con la gradación que las propias tablas publican (marcado "extrapolado"). No se interpola entre columnas porque las tallas coinciden exactamente. No hubo conversión de pulgadas.
 
 | Medida | 40 | 42 | 44 | 46 | 48 | 50 | 52 | 54 | Convención | Fuente / método |
 |---|---|---|---|---|---|---|---|---|---|---|
-| Contorno de cuello | 36 | 37 | 38 | 39 | 40 | 41 | 42 | 43 | completo | Derivado: 5 × radio de escote (3.2); se conserva el radio de escote. Coincide con el ≈ 40 de Ottobre para la 48 |
-| Largo de hombro | 13.1 | 13.4 | 13.7 | 14 | 14.3 | 14.6 | 14.9 | 15.2 | medida lineal | Derivado: anclado en 14.3 (talla 48, lectura Ottobre no confirmada), gradación +0.3 por talla |
-| Ancho de pecho (1/2) | 17.5 | 18 | 18.5 | 19 | 19.5 | 20 | 20.5 | 21 | media medida | Derivado: ancho de espalda (3.2) − 2, el pecho es más estrecho que la espalda (en 3.1 la diferencia es 1 cm; aquí 2 cm por ser medidas de hombre) |
-| Contorno de brazo | 27.2 | 28.4 | 29.6 | 30.8 | 32 | 33.2 | 34.4 | 35.6 | completo | Derivado: 32 en la 48, gradación +1.2 por talla |
-| Contorno de muñeca | 15.2 | 15.6 | 16 | 16.4 | 16.8 | 17.2 | 17.6 | 18 | completo | Derivado: 16.8 en la 48, gradación +0.4 por talla |
-| Largo total de camisa | 73.5 | 74 | 74.5 | 75 | 75.5 | 76.5 | 77.5 | 78.2 | medida lineal | Derivado: largo de talle (3.2) + 32; hereda su irregularidad en 50–54 |
-| Contorno de muslo | 50.5 | 53 | 55 | 57.5 | 60 | 62.5 | 65 | 67 | completo | Derivado: 0.60 × (2 × cadera de 3.2), redondeado a 0.5 |
+| Contorno de cuello | 36 | 37 | 38 | 39 | 40 | 41 | 42 | 43 | completo | **Fuente**: [OTT] "Neck circumference" (46–54: 39…43, directo) y [KER] "Neck base circumference" (44–54: 38…43, directo; coinciden en las tallas comunes). 40–42: extrapolado con +1 por talla (pendiente de ambas tablas; contraste: Fashion Frozen da cuello 37 para pecho 84, https://fashionfrozen.com/tabella-taglie-e-vestibilita-uomo/). Sin cambio respecto a la estimación previa. Se conserva el radio de escote de 3.2 |
+| Largo de hombro | 13.1 | 13.4 | 13.7 | 14 | 14.3 | 14.6 | 14.9 | 15.2 | medida lineal | **Fuente**: [OTT] "Shoulder length" (46–54: 14…15.2, directo) y [KER] "Shoulder length" (44–54: 13.7…15.2, directo; coinciden). 40–42: extrapolado con +0.3 por talla (gradación de ambas tablas). Sin cambio respecto a la estimación previa |
+| Ancho de pecho (1/2) | 17 | 17.5 | 18 | 18.5 | 19 | 19.5 | 20 | 20.5 | media medida | **Parcialmente fuente**: ancho de espalda EASD (3.2) − 2.5. El 2.5 sale de [KER]: ancho de espalda − ancho de pecho = 5 cm en todas las tallas (completo; 2.5 en media medida; p. ej. 39 − 34 en la 48). No se toma el valor absoluto de [KER] (17 en media medida para la 48) porque su "ancho de espalda" (39 completo) se mide entre las líneas verticales de las axilas y no coincide con el de EASD (43 completo). Antes: espalda − 2 (cambio −0.5) |
+| Contorno de brazo | 27.2 | 28.4 | 29.6 | 30.8 | 32 | 33.2 | 34.4 | 35.6 | completo | **estimado (sin fuente)**: 32 en la 48, gradación +1.2 por talla. Ni [OTT] ni [KER] traen bíceps/brazo, y no se pudo leer Aldrich *Menswear* (solo existe en línea la tabla de mujer), ASTM D6240 (de pago), ni las tablas de Alvanon (Scribd/PDF solo con definiciones). Contraste de orden de magnitud: Craft Yarn Council, "Upper arm" para hombre (tallas S–XL, 30.5 / 33 / 38 / 39.5 cm; tabla de punto con saltos irregulares), https://www.craftyarncouncil.com/standards/man-size, que interpolado en pecho 92–100 da 31.3–33.5 cm, a ≤ 0.5 cm de los valores de esta fila |
+| Contorno de muñeca | 16.8 | 17 | 17.2 | 17.4 | 17.6 | 17.8 | 18 | 18.2 | completo | **Fuente**: [KER] "Wrist circumference" (44–54: 17.2…18.2, directo; gradación +0.2 por talla). 40–42: extrapolado con +0.2 por talla. Antes: 16.8 en la 48 con +0.4 por talla; cambia +1.6 (40), +1.4 (42), +1.2 (44) |
+| Largo total de camisa | 73.5 | 74 | 74.5 | 75 | 75.5 | 76.5 | 77.5 | 78.2 | medida lineal | **estimado (sin fuente estándar)**: largo de talle (3.2) + 32; hereda su irregularidad en 50–54. El largo de camisa es una medida de diseño, no corporal, y no existe tabla estándar: se buscaron las tablas de Ottobre, Kershaw (solo traen largo de espalda a cintura: 44.7 en la 48) y marcas. Contraste: Tapered Menswear, largo de espalda de camisa por pecho (cm): 74 (S, pecho 89–94), 75 (M, 94–99), 77 (L, 99–104), 79 (XL, 104–109), https://taperedmenswear.com/pages/size-guide; Opalona 77 cm (M). Esos 74–79 cm coinciden con 75–78.2 de esta fila a ≤ 1.5 cm |
+| Contorno de muslo | 49.1 | 50.9 | 52.7 | 54.5 | 56.3 | 58.1 | 59.9 | 61.7 | completo | **Fuente**: [KER] "Thigh circumference" (44–54: 52.7…61.7, directo; medido a 5 cm bajo la entrepierna, el punto más ancho de la pierna; +1.8 por talla). 40–42: extrapolado con +1.8 por talla. Reemplaza la estimación 0.60 × cadera, que sobrestimaba 3.7 cm en la 48 (cambio −1.4 a −5.3 según talla). Contraste: media de 57 cm en el punto más ancho (https://www.nathantailors.com/guides/average-male-body-measurements) |
 
-Notas: todas las filas masculinas son estimaciones y la app las marca como "derivado" hasta que el usuario las confirme o sobrescriba. Contorno de rodilla y de tobillo no se añaden: el pantalón masculino usa ancho de rodilla y ancho de camal de 3.2.
+Notas: la app marca como "derivado/estimado" solo las filas "estimado (sin fuente)" (contorno de brazo, largo total de camisa) y como "parcial" el ancho de pecho; el resto vienen de [OTT]/[KER] en 44–54 y son extrapolación lineal en 40–42. [KER] es un modelo de ajuste europeo (corpulencia media) y las medidas de EASD se midieron en otra población: validar con prueba de tela. Contorno de rodilla y de tobillo no se añaden: el pantalón masculino usa ancho de rodilla y ancho de camal de 3.2. Para cerrar las dos filas pendientes habría que consultar Aldrich *Metric Pattern Cutting for Menswear* (cap. "Standard body measurements"; trae brazo y muslo por talla de pecho 88–112) en papel.
 
 ## 4. Bloques base (trazados paramétricos)
 
@@ -180,7 +185,7 @@ Cada bloque es una función pura `draft(medidas, opciones) → Draft` en TypeScr
 
 ## 12. Fases
 
-- **F0:** Andamiaje (Vite/React/TS, Vitest, Playwright, lint, estructura de carpetas).
+- **F0:** Andamiaje (Vite/React/TS, Vitest, Playwright, lint, estructura de carpetas) y CI/CD a GitHub Pages (`deploy.yml`).
 - **F1:** Datos de medidas + motor geométrico + bloque cuerpo base mujer.
 - **F2:** Editor de lienzo (zoom/paneo, capas, selección, snap, calibración y vista 1:1).
 - **F3:** Resto de bloques (manga, falda, pantalón mujer, bloques hombre, pantalón hombre).
