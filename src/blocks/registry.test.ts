@@ -44,6 +44,21 @@ describe('block registry', () => {
     expect(waist.points.A54).toBeUndefined()
   })
 
+  it('registers the sleeve and skirt blocks with their options', () => {
+    const sleeve = getBlock('women-sleeve')
+    expect(sleeve.label).toBe('Manga base mujer')
+    expect(defaultBlockOptions(sleeve)).toEqual({ capEase: '15' })
+    expect(pieceCut(sleeve, 'sleeve')).toEqual({ count: 2, material: 'Tela' })
+    const low = draftBlock(sleeve, '10')
+    const high = draftBlock(sleeve, '10', { capEase: '42' })
+    expect(high.points.B2.y).toBeGreaterThan(low.points.B2.y)
+
+    const skirt = getBlock('women-skirt')
+    expect(skirt.label).toBe('Falda base mujer')
+    expect(draftBlock(skirt, '10').points.A5.x).toBeCloseTo(247.5, 9)
+    expect(draftBlock(skirt, '10', { sideSeamShift: '10' }).points.A5.x).toBeCloseTo(257.5, 9)
+  })
+
   it('rejects sizes of another system', () => {
     const block = getBlock('women-bodice')
     expect(isBlockSize(block, '48')).toBe(false)

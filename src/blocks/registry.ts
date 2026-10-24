@@ -12,6 +12,8 @@ import {
   type SizeOf,
 } from '../data'
 import { draftWomenBodice } from './womenBodice'
+import { draftWomenSkirt } from './womenSkirt'
+import { WOMEN_SLEEVE_DEFAULTS, draftWomenSleeve } from './womenSleeve'
 
 export type BlockOptionValue = string
 
@@ -85,7 +87,67 @@ export const WOMEN_BODICE_BLOCK: BlockDef<'co-women-industrial'> = {
   draft: (m, o) => draftWomenBodice(m, { length: o.length === 'waist' ? 'waist' : 'hip' }),
 }
 
-export const BLOCKS: readonly AnyBlockDef[] = [WOMEN_BODICE_BLOCK]
+/** Parse a numeric choice value (mm), falling back to `fallback`. */
+const mmOption = (v: BlockOptionValue | undefined, fallback: number): number => {
+  const n = Number(v)
+  return v !== undefined && v !== '' && Number.isFinite(n) ? n : fallback
+}
+
+export const WOMEN_SLEEVE_BLOCK: BlockDef<'co-women-industrial'> = {
+  id: 'women-sleeve',
+  label: 'Manga base mujer',
+  category: ['Manga', 'Bloques base'],
+  sex: 'female',
+  system: 'co-women-industrial',
+  defaultSize: '10',
+  options: [
+    {
+      key: 'capEase',
+      label: 'Embebido de copa',
+      choices: [
+        { value: '15', label: '1,5 cm' },
+        { value: '30', label: '3 cm' },
+        { value: '42', label: '4,2 cm (ejemplo del método)' },
+      ],
+      default: String(WOMEN_SLEEVE_DEFAULTS.capEase),
+    },
+  ],
+  views: [{ id: 'sleeve', label: 'Manga', pieceId: 'sleeve' }],
+  cut: { sleeve: { count: 2, material: 'Tela' } },
+  draft: (m, o) =>
+    draftWomenSleeve(m, { capEase: mmOption(o.capEase, WOMEN_SLEEVE_DEFAULTS.capEase) }),
+}
+
+export const WOMEN_SKIRT_BLOCK: BlockDef<'co-women-industrial'> = {
+  id: 'women-skirt',
+  label: 'Falda base mujer',
+  category: ['Falda', 'Bloques base'],
+  sex: 'female',
+  system: 'co-women-industrial',
+  defaultSize: '10',
+  options: [
+    {
+      key: 'sideSeamShift',
+      label: 'Desvío del costado',
+      choices: [
+        { value: '0', label: 'Centrado' },
+        { value: '10', label: '1 cm hacia el delantero' },
+      ],
+      default: '0',
+    },
+  ],
+  views: [
+    { id: 'front', label: 'Frente', pieceId: 'front' },
+    { id: 'back', label: 'Espalda', pieceId: 'back' },
+  ],
+  draft: (m, o) => draftWomenSkirt(m, { sideSeamShift: mmOption(o.sideSeamShift, 0) }),
+}
+
+export const BLOCKS: readonly AnyBlockDef[] = [
+  WOMEN_BODICE_BLOCK,
+  WOMEN_SLEEVE_BLOCK,
+  WOMEN_SKIRT_BLOCK,
+]
 
 export const DEFAULT_BLOCK_ID = WOMEN_BODICE_BLOCK.id
 
