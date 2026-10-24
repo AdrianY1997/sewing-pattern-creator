@@ -13,6 +13,8 @@ import {
 } from '../data'
 import { draftMenBodice } from './menBodice'
 import { MEN_SLEEVE_DEFAULTS, draftMenSleeve } from './menSleeve'
+import { draftMenTrousers } from './menTrousers'
+import { draftWomenTrousers } from './womenTrousers'
 import { draftWomenBodice } from './womenBodice'
 import { draftWomenSkirt } from './womenSkirt'
 import { WOMEN_SLEEVE_DEFAULTS, draftWomenSleeve } from './womenSleeve'
@@ -194,12 +196,61 @@ export const MEN_SLEEVE_BLOCK: BlockDef<'es-men-easd'> = {
   draft: (m, o) => draftMenSleeve(m, { capEase: mmOption(o.capEase, MEN_SLEEVE_DEFAULTS.capEase) }),
 }
 
+/** Trouser legs are cut twice (left and right). */
+const TROUSER_CUT: Readonly<Record<string, PieceCutInfo>> = {
+  front: { count: 2, material: 'Tela' },
+  back: { count: 2, material: 'Tela' },
+}
+
+const TROUSER_VIEWS: readonly BlockView[] = [
+  { id: 'front', label: 'Frente', pieceId: 'front' },
+  { id: 'back', label: 'Espalda', pieceId: 'back' },
+]
+
+export const WOMEN_TROUSERS_BLOCK: BlockDef<'co-women-industrial'> = {
+  id: 'women-trousers',
+  label: 'Pantalón base mujer',
+  category: ['Pantalón', 'Bloques base'],
+  sex: 'female',
+  system: 'co-women-industrial',
+  defaultSize: '10',
+  options: [
+    {
+      key: 'bottom',
+      label: 'Ancho de bota',
+      choices: [
+        { value: 'straight', label: 'Recta' },
+        { value: 'jeans', label: 'Ajustada (jean)' },
+      ],
+      default: 'straight',
+    },
+  ],
+  views: TROUSER_VIEWS,
+  cut: TROUSER_CUT,
+  draft: (m, o) => draftWomenTrousers(m, { bottom: o.bottom === 'jeans' ? 'jeans' : 'straight' }),
+}
+
+export const MEN_TROUSERS_BLOCK: BlockDef<'es-men-easd'> = {
+  id: 'men-trousers',
+  label: 'Pantalón base hombre',
+  category: ['Pantalón', 'Bloques base'],
+  sex: 'male',
+  system: 'es-men-easd',
+  defaultSize: '48',
+  options: [],
+  views: TROUSER_VIEWS,
+  cut: TROUSER_CUT,
+  draft: (m) => draftMenTrousers(m),
+}
+
 export const BLOCKS: readonly AnyBlockDef[] = [
   WOMEN_BODICE_BLOCK,
   WOMEN_SLEEVE_BLOCK,
   WOMEN_SKIRT_BLOCK,
+  WOMEN_TROUSERS_BLOCK,
   MEN_BODICE_BLOCK,
   MEN_SLEEVE_BLOCK,
+  MEN_TROUSERS_BLOCK,
 ]
 
 export const DEFAULT_BLOCK_ID = WOMEN_BODICE_BLOCK.id
