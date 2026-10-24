@@ -19,7 +19,7 @@ import {
   segmentTangent,
   type Segment,
 } from '../path'
-import { angleBetween, distance, normalize, radToDeg, sub, vec, type Vec } from '../vec'
+import { angleBetween, distance, normalize, radToDeg, rotate, sub, vec, type Vec } from '../vec'
 import { dartAngleDeg, findDart } from './darts'
 import { orientedOutline } from './edit'
 import { pieceLocalPath } from './pattern'
@@ -617,5 +617,118 @@ describe('validators of the F4c operations', () => {
   it('covers every new operation type', () => {
     expect(Object.keys(valid).sort()).toEqual(Object.keys(invalid).sort())
     expect(Object.keys(valid)).toHaveLength(11)
+  })
+})
+
+describe('transferDart is a rigid pivot (regressions)', () => {
+  const cases = [
+    { target: 'front.shoulder', ratio: 0.5, options: {} },
+    { target: 'front.neck', ratio: 0.5, options: {} },
+    { target: 'front.waist', ratio: 0.3, options: { length: 'waist' } },
+  ] as const
+  const len = (p: PatternPiece, id: string) => segmentLength(stripMeta(p.segments[id]))
+  const sumRole = (p: PatternPiece, role: string) =>
+    p.outline
+      .filter((r) => p.segments[r.segment].role === role)
+      .reduce((a, r) => a + len(p, r.segment), 0)
+  const ctrl = (s: Segment): Vec[] => (s.kind === 'line' ? [s.p0, s.p1] : [s.p0, s.p1, s.p2, s.p3])
+
+  for (const size of ['6', '10', '16'])
+    for (const c of cases)
+      it(`size ${size}: bust dart to ${c.target}`, () => {
+        const before = pieceOf(run(WOMEN, size, extract, c.options).pattern.pieces, 'front')
+        const { pattern, issues } = run(
+          WOMEN,
+          size,
+          [
+            ...extract,
+            ...ops({
+              type: 'transferDart',
+              pieceId: 'front',
+              dartId: 'front.bustDart',
+              toSegmentId: c.target,
+              atRatio: c.ratio,
+            }),
+          ],
+          c.options,
+        )
+        expect(issues).toEqual([])
+        const p = pieceOf(pattern.pieces, 'front')
+        // Armhole length unchanged.
+        expect(Math.abs(sumRole(p, 'armhole') - sumRole(before, 'armhole'))).toBeLessThan(0.1)
+        // Side seam: the old legs meet, upper + lower side unchanged, nothing in between.
+        expect(distance(p.points.A36, p.points.A38)).toBeLessThan(0.01)
+        const side = (q: PatternPiece) => len(q, 'front.side') + len(q, 'front.sideLower')
+        expect(Math.abs(side(p) - side(before))).toBeLessThan(0.01)
+        const ids = p.outline.map((r) => r.segment)
+        const at = (id: string) => ids.indexOf(id)
+        const next = (id: string) => ids[(at(id) + 1) % ids.length]
+        expect(next('front.sideLower')).toBe('front.side')
+        expect(next('front.side')).toBe('front.armhole.2')
+        // No bridging edge: only the target's halves and the new dart's opening are new.
+        const known = new Set([
+          ...before.outline.map((r) => r.segment),
+          `${c.target}~1`,
+          `${c.target}~2`,
+          'front.bustDart~t.open',
+        ])
+        expect(ids.filter((id) => !known.has(id))).toEqual([])
+        expect(ids.some((id) => id.includes('~gap'))).toBe(false)
+        // Every surviving segment is the original either unmoved or rotated about the apex by
+        // the dart angle (a rigid motion).
+        const P = before.points.A34
+        const theta = angleBetween(sub(before.points.A36, P), sub(before.points.A38, P))
+        let turned = 0
+        for (const id of ids) {
+          if (!before.segments[id]) continue
+          const a = ctrl(stripMeta(before.segments[id]))
+          const b = ctrl(stripMeta(p.segments[id]))
+          expect(len(p, id)).toBeCloseTo(len(before, id), 6)
+          const same = a.every((q, i) => distance(q, b[i]) < 1e-6)
+          const rotated = [theta, -theta].some((t) =>
+            a.every((q, i) => distance(rotate(q, t, P), b[i]) < 1e-6),
+          )
+          expect(same || rotated, id).toBe(true)
+          if (rotated && !same) turned++
+        }
+        expect(turned).toBeGreaterThan(0)
+      })
+})
+
+describe('closeDart opens its angle on a chosen edge, never on a fold', () => {
+  it('without a target the bodice bust dart spreads at the hem, not on the centre front', () => {
+    const { pattern, issues } = run(WOMEN, '10', [
+      ...extract,
+      ...ops({ type: 'closeDart', pieceId: 'front', dartId: 'front.bustDart' }),
+    ])
+    expect(issues).toEqual([])
+    const p = pieceOf(pattern.pieces, 'front')
+    expect(p.segments['front.bustDart~gap'].role).toBe('hem')
+  })
+
+  it('an explicit target is used; a fold edge is refused', () => {
+    const ok = run(WOMEN, '10', [
+      ...extract,
+      ...ops({
+        type: 'closeDart',
+        pieceId: 'front',
+        dartId: 'front.bustDart',
+        toSegmentId: 'front.shoulder',
+        atRatio: 0.5,
+      }),
+    ])
+    expect(ok.issues).toEqual([])
+    expect(pieceOf(ok.pattern.pieces, 'front').segments['front.bustDart~gap'].role).toBe('shoulder')
+    const bad = run(WOMEN, '10', [
+      ...extract,
+      ...ops({
+        type: 'closeDart',
+        pieceId: 'front',
+        dartId: 'front.bustDart',
+        toSegmentId: 'front.cf',
+        atRatio: 0.5,
+      }),
+    ])
+    expect(bad.issues).toHaveLength(1)
   })
 })

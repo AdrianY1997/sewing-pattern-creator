@@ -99,7 +99,8 @@ export const MEN_ES_EASD: MeasurementTable<MenKey, MenSize> = {
       label: 'Contorno de cuello',
       kind: 'full',
       valuesCm: [36, 37, 38, 39, 40, 41, 42, 43],
-      method: '[OTT] "Neck circumference" y [KER] "Neck base circumference" (directo, 44-54); 40-42 extrapolado +1 por talla',
+      method:
+        '[OTT] "Neck circumference" y [KER] "Neck base circumference" (directo, 44-54); 40-42 extrapolado +1 por talla',
       derived: false,
     },
     {

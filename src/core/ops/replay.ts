@@ -663,7 +663,9 @@ function applyOne(
     case 'addButton':
       return addButton(pieces, op)
     case 'closeDart':
-      return editPiece(pieces, op.pieceId, (p) => closeDart(p, op.dartId))
+      return editPiece(pieces, op.pieceId, (p) =>
+        closeDart(p, op.dartId, op.toSegmentId, op.atRatio),
+      )
     case 'transferDart':
       return editPiece(pieces, op.pieceId, (p) =>
         transferDart(p, op.dartId, op.toSegmentId, op.atRatio, op.keepPercent),

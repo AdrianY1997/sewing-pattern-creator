@@ -231,15 +231,17 @@ export interface RemoveMarkOp extends OpBase {
 export type PointRef = string | { readonly segmentId: string; readonly end: 'start' | 'end' }
 
 /**
- * Closes an edge dart: the side of the piece without the grainline (the smaller one when that does
- * not decide) turns about the apex until the legs coincide, cut along the dart's centre line
- * prolonged past the apex; the angle opens on the opposite edge as a spread bridged by a straight
- * edge. The edge across the closed dart is trued (made smooth). Internal darts cannot be closed.
+ * Closes an edge dart. In a flat piece the angle must open elsewhere, so this is a transfer to the
+ * point at `atRatio` of `toSegmentId` (default: the hem, else the waist, never a fold or centre
+ * line; the point most nearly on the dart's centre line prolonged past the apex), where it opens as a spread (flare) bridged by a straight
+ * edge `${dartId}~gap`. The seam across the closed dart is trued. Internal darts cannot be closed.
  */
 export interface CloseDartOp extends OpBase {
   readonly type: 'closeDart'
   readonly pieceId: string
   readonly dartId: string
+  readonly toSegmentId?: string
+  readonly atRatio?: number
 }
 
 /**

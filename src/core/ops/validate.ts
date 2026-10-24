@@ -85,7 +85,12 @@ const VALIDATORS: { readonly [T in OperationType]: (o: Rec) => boolean } = {
   addTextMark: (o) => isStr(o.pieceId) && typeof o.text === 'string' && isAnchor(o.at),
   addButton: (o) => isStr(o.pieceId) && isAnchor(o.at) && isNum(o.diameterMm),
   removeMark: (o) => isStr(o.pieceId) && isStr(o.markId),
-  closeDart: (o) => isStr(o.pieceId) && isStr(o.dartId),
+  closeDart: (o) =>
+    isStr(o.pieceId) &&
+    isStr(o.dartId) &&
+    opt(o.toSegmentId, isStr) &&
+    opt(o.atRatio, isRatio) &&
+    (o.toSegmentId === undefined) === (o.atRatio === undefined),
   transferDart: (o) =>
     isStr(o.pieceId) &&
     isStr(o.dartId) &&

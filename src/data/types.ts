@@ -65,13 +65,7 @@ export type MenTableKey =
 export type WomenKey = WomenTableKey | WomenComplementaryKey
 /** Men's complementary measurements (SPEC §3.4.2). */
 export type MenComplementaryKey =
-  | 'neck'
-  | 'shoulderLength'
-  | 'halfChestWidth'
-  | 'upperArm'
-  | 'wrist'
-  | 'shirtLength'
-  | 'thigh'
+  'neck' | 'shoulderLength' | 'halfChestWidth' | 'upperArm' | 'wrist' | 'shirtLength' | 'thigh'
 
 export type MenKey = MenTableKey | MenComplementaryKey
 

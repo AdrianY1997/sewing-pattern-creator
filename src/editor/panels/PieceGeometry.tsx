@@ -64,7 +64,7 @@ export function DartsSection({ piece }: { piece: PatternPiece }) {
                   disabled={!edge}
                   title={
                     edge
-                      ? 'Cerrar la pinza (el volumen se abre en el borde opuesto)'
+                      ? 'Cerrar la pinza: el vuelo se abre en el bajo (o la cintura), nunca en el doblez'
                       : 'Las pinzas internas no se pueden cerrar'
                   }
                   onClick={() => A.closeDart(piece.id, d.id)}

@@ -10,7 +10,6 @@
  */
 import { curveWithTangents } from '../bezier'
 import { stripMeta, type Dart, type DraftSegment, type OutlineRef, type PieceMark } from '../draft'
-import { intersectSegments } from '../intersect'
 import {
   distanceToPolyline,
   flattenSegment,
@@ -53,7 +52,7 @@ import {
   withGeometry,
 } from './edit'
 import { fail } from './errors'
-import { projectOnSegment, segmentAt } from './marks'
+import { isFoldEdge, projectOnSegment, segmentAt } from './marks'
 import type { PatternPiece } from './types'
 
 /** Suffix of the dart created by transferDart (`~t`, `~t2`…). */
@@ -450,38 +449,98 @@ function pivot(t0: DartTopology, Q: Vec, fraction: number, bridge: Bridge): Patt
     next = { ...next, darts }
   }
   if (full) {
-    // Opening edges and both legs go; the join is trued.
+    // Opening edges and both legs go. A transfer stays rigid (the turned side is only rotated);
+    // closeDart trues the seam across the closed dart.
     const gone = new Set([...openingIds, legS, legE])
     next = dropSegments(next, gone, [t.Es, t.Ee, P])
-    const join = turnR1 ? t.Es : t.Ee
-    const k = vertexIndexAt(next, join)
-    if (k >= 0) next = trueJoin(next, k)
+    if (bridge.kind === 'spread') {
+      const k = vertexIndexAt(next, turnR1 ? t.Es : t.Ee)
+      if (k >= 0) next = trueJoin(next, k)
+    }
   } else {
     next = dropSegments(next, new Set(openingIds.slice(1)), [t.Es, t.Ee, R(t.Es), R(t.Ee)])
   }
   return { ...next, marks: reattachMarks(next) }
 }
 
-/**
- * closeDart: the dart closes about its apex; the cut runs along the dart's centre line prolonged
- * past the apex to the opposite edge, where the angle opens as a spread bridged by a straight edge
- * (`${dartId}~gap`, with the role and allowance of that edge).
- */
-export function closeDart(piece: PatternPiece, dartId: unknown): PatternPiece {
-  const t = edgeDart(piece, dartId)
-  const P = t.apex
-  const bis = normalize(add(normalize(sub(t.Es, P)), normalize(sub(t.Ee, P))))
-  const far = add(P, scale(bis, -1e5))
-  let Q: Vec | null = null
-  for (const k of t.body) {
-    for (const h of intersectSegments(line('ray', P, far), orientedOutline(t.piece, k)))
-      if (!Q || distance(h.point, P) < distance(Q, P)) Q = h.point
-  }
-  if (!Q) return fail(`No se encontró el borde opuesto a la pinza "${t.dart.id}"`)
-  return pivot(t, Q, 1, { kind: 'spread' })
+/** True for edges a dart may not open on: fold and centre lines, and dart openings. */
+const closedEdge = (piece: PatternPiece, id: string): boolean => {
+  const role = piece.segments[id]?.role
+  return isFoldEdge(piece, id) || role === 'centerFront' || role === 'centerBack' || role === 'dart'
 }
 
-/** transferDart: pivot method towards the point at `atRatio` of `toSegmentId`. */
+/**
+ * Where closeDart opens the spread when no target is given: on the hem (else the waist, else any
+ * edge that is not a fold, centre line or dart), at the point that lies most nearly on the dart's
+ * centre line prolonged past the apex (less than 90° off it, else the next kind of edge).
+ */
+function autoClosePoint(t: DartTopology): Vec {
+  const P = t.apex
+  const away = scale(normalize(add(normalize(sub(t.Es, P)), normalize(sub(t.Ee, P)))), -1)
+  const open = t.body
+    .map((k) => t.piece.outline[k].segment)
+    .filter((id) => !closedEdge(t.piece, id))
+  const best = (ids: readonly string[]) => {
+    let out: { at: Vec; cos: number } | null = null
+    for (const id of ids) {
+      const s = t.piece.segments[id]
+      const len = segmentLength(stripMeta(s))
+      for (let i = 1; i < 64; i++) {
+        const at = segmentAt(s, (i / 64) * len).point
+        const d = normalize(sub(at, P))
+        const cos = d.x * away.x + d.y * away.y
+        if (!out || cos > out.cos + 1e-12) out = { at, cos }
+      }
+    }
+    return out && out.cos > 0 ? out.at : null
+  }
+  const role = (r: string) => open.filter((id) => t.piece.segments[id]?.role === r)
+  return (
+    best(role('hem')) ??
+    best(role('waist')) ??
+    best(open) ??
+    fail(`No hay un borde donde abrir el vuelo de la pinza "${t.dart.id}"`)
+  )
+}
+
+/**
+ * closeDart: closing a dart in a flat piece opens its angle somewhere else, so it is a transfer to
+ * `toSegmentId` at `atRatio` (default: the hem, else the waist, never a fold or
+ * centre line). The side without the grainline turns rigidly about the apex; the angle opens there
+ * as a spread (flare) bridged by a straight edge `${dartId}~gap` with that edge's role and
+ * allowance, and the seam across the closed dart is trued (made smooth).
+ */
+export function closeDart(
+  piece: PatternPiece,
+  dartId: unknown,
+  toSegmentId?: unknown,
+  atRatio?: unknown,
+): PatternPiece {
+  if (toSegmentId === undefined) {
+    const t = edgeDart(piece, dartId)
+    return pivot(t, autoClosePoint(t), 1, { kind: 'spread' })
+  }
+  const Q = targetPoint(piece, toSegmentId, atRatio)
+  if (closedEdge(piece, toSegmentId as string))
+    fail('La pinza no se puede abrir en un doblez, un centro o una pinza')
+  return pivot(edgeDart(piece, dartId), Q, 1, { kind: 'spread' })
+}
+
+/** Point at `atRatio` (arc length) of outline edge `segmentId`, validated. */
+const targetPoint = (piece: PatternPiece, segmentId: unknown, atRatio: unknown): Vec => {
+  const target = segOf(piece, segmentId)
+  if (!piece.outline.some((r) => r.segment === segmentId))
+    fail(`"${String(segmentId)}" no es un borde de la pieza "${piece.id}"`)
+  if (typeof atRatio !== 'number' || !Number.isFinite(atRatio) || atRatio < 0 || atRatio > 1)
+    fail('Posición de destino no válida')
+  return segmentAt(target, (atRatio as number) * segmentLength(stripMeta(target))).point
+}
+
+/**
+ * transferDart: pivot method towards the point at `atRatio` of `toSegmentId`. Rigid: the turned
+ * side is only rotated about the apex (lengths, armhole and seams unchanged); the old legs meet and
+ * the only new edges are the new dart's opening (and its legs, inside).
+ */
 export function transferDart(
   piece: PatternPiece,
   dartId: unknown,
@@ -489,16 +548,11 @@ export function transferDart(
   atRatio: unknown,
   keepPercent: unknown = 0,
 ): PatternPiece {
-  const target = segOf(piece, toSegmentId)
-  if (!piece.outline.some((r) => r.segment === toSegmentId))
-    fail(`"${String(toSegmentId)}" no es un borde de la pieza "${piece.id}"`)
-  if (typeof atRatio !== 'number' || !Number.isFinite(atRatio) || atRatio < 0 || atRatio > 1)
-    fail('Posición de destino no válida')
+  // Q from the edge as it is now: making the leg ends vertices may split that edge.
+  const Q = targetPoint(piece, toSegmentId, atRatio)
   const keep = keepPercent ?? 0
   if (typeof keep !== 'number' || !Number.isFinite(keep) || keep < 0 || keep >= 100)
     fail('Porcentaje a conservar no válido (0–99 %)')
-  // Q from the edge as it is now: making the leg ends vertices may split that edge.
-  const Q = segmentAt(target, (atRatio as number) * segmentLength(stripMeta(target))).point
   const t = edgeDart(piece, dartId)
   const newId = freshId((x) => t.piece.darts.some((d) => d.id === x), t.dart.id, TRANSFER_SUFFIX)
   return pivot(t, Q, 1 - (keep as number) / 100, { kind: 'dart', newId })
