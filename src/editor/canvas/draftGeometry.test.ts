@@ -2,7 +2,13 @@ import { describe, expect, it } from 'vitest'
 import { draftBlock, getBlock } from '../../blocks'
 import { pathBBox, piecePath, segmentLength } from '../../core'
 import { measureWomenBodice } from '../../blocks/womenBodice'
-import { buildDraftRender, classifyInternal, pieceMetrics, polygonCentroid } from './draftGeometry'
+import {
+  buildDraftRender,
+  classifyInternal,
+  notchTicks,
+  pieceMetrics,
+  polygonCentroid,
+} from './draftGeometry'
 
 describe('draft render data', () => {
   const draft = draftBlock(getBlock('women-bodice'), '10')
@@ -70,5 +76,32 @@ describe('draft render data', () => {
     expect(m.armhole).toBeCloseTo(bodice.armhole.front, 6)
     expect(pieceMetrics(draft, 'back').armhole).toBeCloseTo(bodice.armhole.back, 6)
     expect(() => pieceMetrics(draft, 'nope')).toThrow()
+  })
+})
+
+describe('notchTicks', () => {
+  const square = [
+    { x: 0, y: 0 },
+    { x: 100, y: 0 },
+    { x: 100, y: 100 },
+    { x: 0, y: 100 },
+  ]
+  it('single notch: 5 mm tick perpendicular to the outline, crossing it', () => {
+    const [t] = notchTicks(square, { x: 50, y: 0 })
+    expect(t).toEqual([
+      { x: 50, y: -2.5 },
+      { x: 50, y: 2.5 },
+    ])
+  })
+  it('double notch: two ticks 3 mm apart along the outline', () => {
+    const ts = notchTicks(square, { x: 100, y: 50 }, 2)
+    expect(ts).toHaveLength(2)
+    expect(Math.abs(ts[1][0].y - ts[0][0].y)).toBeCloseTo(3)
+    for (const [a, b] of ts) expect(Math.hypot(b.x - a.x, b.y - a.y)).toBeCloseTo(5)
+  })
+  it('the sleeve render has 3 notches, 4 ticks', () => {
+    const r2 = buildDraftRender(draftBlock(getBlock('women-sleeve'), '10'))
+    expect(r2.notches).toHaveLength(3)
+    expect(r2.notches.flatMap((n) => n.ticks)).toHaveLength(4)
   })
 })

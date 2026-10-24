@@ -17,6 +17,14 @@ describe('editor store', () => {
     expect(st().selectedPieceId).toBeNull()
   })
 
+  it('title follows the block label until the user edits it', () => {
+    st().setBlock('women-sleeve')
+    expect(st().title).toBe('Manga base mujer')
+    st().setTitle('Mi patrón')
+    st().setBlock('women-bodice')
+    expect(st().title).toBe('Mi patrón')
+  })
+
   it('accepts only sizes of the current system', () => {
     st().setSize('16')
     expect(st().size).toBe('16')

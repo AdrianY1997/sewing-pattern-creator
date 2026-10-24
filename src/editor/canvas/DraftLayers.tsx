@@ -146,6 +146,13 @@ export const DraftLayers = memo(function DraftLayers(props: DraftLayersProps) {
           {render.grainlines.map((g) => (
             <Grainline key={g.id} g={g} head={9 * px} />
           ))}
+          {render.notches.map((n) => (
+            <g key={n.id} className="notch" data-testid="notch" data-notch={n.id}>
+              {n.ticks.map(([a, b], i) => (
+                <line key={i} x1={a.x} y1={a.y} x2={b.x} y2={b.y} />
+              ))}
+            </g>
+          ))}
           {render.pieces.map((p) =>
             p.vertices.map((v, i) => (
               <circle key={`${p.id}:${i}`} className="vertex" cx={v.x} cy={v.y} r={2.5 * px} />

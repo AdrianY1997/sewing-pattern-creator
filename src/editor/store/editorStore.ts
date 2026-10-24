@@ -36,6 +36,8 @@ export type Drawer = 'left' | 'right'
 
 export interface EditorData {
   readonly title: string
+  /** True once the user typed a title: switching blocks then keeps it. */
+  readonly titleEdited: boolean
   readonly blockId: string
   readonly system: MeasurementSystem
   readonly size: string
@@ -112,6 +114,7 @@ const initialData = (): EditorData => {
   const block = getBlock(DEFAULT_BLOCK_ID)
   return {
     title: block.label,
+    titleEdited: false,
     blockId: block.id,
     system: block.system,
     size: block.defaultSize,
@@ -149,12 +152,13 @@ export const selectSnapshot = (s: EditorData): ProjectSnapshot => ({
 export const useEditorStore = create<EditorState>()((set, get) => ({
   ...initialData(),
 
-  setTitle: (title) => set({ title }),
+  setTitle: (title) => set({ title, titleEdited: true }),
 
   setBlock: (blockId) => {
     const block = getBlock(blockId)
     const { size } = get()
     set({
+      ...(get().titleEdited ? {} : { title: block.label }),
       blockId: block.id,
       system: block.system,
       size: isBlockSize(block, size) ? size : block.defaultSize,
@@ -212,6 +216,7 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
       size: snap.size && isBlockSize(block, snap.size) ? snap.size : block.defaultSize,
       blockOptions: sanitizeBlockOptions(block, snap.blockOptions ?? {}),
       title: typeof snap.title === 'string' ? snap.title : get().title,
+      titleEdited: typeof snap.title === 'string' ? snap.title !== block.label : get().titleEdited,
       advanced: { ...DEFAULT_ADVANCED, ...snap.advanced },
       notes: typeof snap.notes === 'string' ? snap.notes : '',
       selectedPieceId: null,

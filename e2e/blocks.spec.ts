@@ -45,3 +45,12 @@ for (const block of BLOCKS)
       await page.screenshot({ path: path.join(dir, shots[block.id]) })
     }
   })
+
+test('switching to the sleeve updates the header title and draws notches', async ({ page }) => {
+  await page.goto('./')
+  await page.getByRole('combobox', { name: 'Tipo de prenda' }).selectOption('women-sleeve')
+  await expect(page.getByLabel('Título del patrón')).toHaveValue('Manga base mujer')
+  await expect(page.locator('.summary-title')).toHaveText('Manga base mujer')
+  await expect(page.getByTestId('notch')).toHaveCount(3)
+  await expect(page.locator('[data-testid="notch"] line')).toHaveCount(4)
+})

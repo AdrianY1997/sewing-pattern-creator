@@ -62,11 +62,67 @@ export interface MarkRender {
   readonly at: Vec
 }
 
+export interface NotchRender {
+  readonly id: string
+  readonly pieceId: string
+  /** One [from, to] segment per tick (a double notch has two). */
+  readonly ticks: readonly (readonly [Vec, Vec])[]
+}
+
+export const NOTCH_LENGTH = 5
+export const NOTCH_GAP = 3
+
+/**
+ * Ticks of a notch: short segments perpendicular to the outline at the point of `outline`
+ * (a polyline, closed or not) nearest to `at`. `count` ticks, `gap` mm apart, each `length` mm long.
+ */
+export function notchTicks(
+  outline: readonly Vec[],
+  at: Vec,
+  count = 1,
+  length = NOTCH_LENGTH,
+  gap = NOTCH_GAP,
+): [Vec, Vec][] {
+  let best: { p: Vec; dir: Vec } | null = null
+  let bestD = Infinity
+  const n = outline.length
+  for (let i = 0; i < n; i++) {
+    const a = outline[i]
+    const b = outline[(i + 1) % n]
+    const dx = b.x - a.x
+    const dy = b.y - a.y
+    const len2 = dx * dx + dy * dy
+    if (len2 < 1e-12) continue
+    const t = Math.max(0, Math.min(1, ((at.x - a.x) * dx + (at.y - a.y) * dy) / len2))
+    const p = { x: a.x + t * dx, y: a.y + t * dy }
+    const d = (p.x - at.x) ** 2 + (p.y - at.y) ** 2
+    if (d < bestD) {
+      bestD = d
+      const l = Math.sqrt(len2)
+      best = { p, dir: { x: dx / l, y: dy / l } }
+    }
+  }
+  if (!best) return []
+  const { dir } = best
+  const nx = -dir.y * (length / 2)
+  const ny = dir.x * (length / 2)
+  const c = Math.max(1, Math.floor(count))
+  return Array.from({ length: c }, (_, i) => {
+    const off = (i - (c - 1) / 2) * gap
+    const m = { x: at.x + dir.x * off, y: at.y + dir.y * off }
+    return [
+      { x: m.x - nx, y: m.y - ny },
+      { x: m.x + nx, y: m.y + ny },
+    ] as [Vec, Vec]
+  })
+}
+
 export interface DraftRender {
   readonly pieces: readonly PieceRender[]
   readonly darts: readonly LineRender[]
   readonly dartMarks: readonly MarkRender[]
   readonly grainlines: readonly GrainlineRender[]
+  readonly notches: readonly NotchRender[]
   /** Construction lines and internal reference lines (e.g. the waist line of a hip block). */
   readonly guides: readonly LineRender[]
   readonly points: readonly { readonly name: string; readonly at: Vec }[]
@@ -148,6 +204,17 @@ export function buildDraftRender(draft: Draft): DraftRender {
       .map((m) => ({ id: m.id, pieceId: pc.id, at: m.at })),
   )
 
+  const notches = draft.pieces.flatMap((pc) => {
+    const outline = flattenPath(piecePath(draft, pc.id), 0.1)
+    return pc.marks
+      .filter((m) => m.kind === 'notch')
+      .map((m) => ({
+        id: m.id,
+        pieceId: pc.id,
+        ticks: notchTicks(outline, m.at, typeof m.data?.count === 'number' ? m.data.count : 1),
+      }))
+  })
+
   const segments: SegmentRender[] = [
     ...draft.pieces.flatMap((pc) =>
       pc.outline.map((r) => ({
@@ -168,6 +235,7 @@ export function buildDraftRender(draft: Draft): DraftRender {
     darts,
     dartMarks,
     grainlines,
+    notches,
     guides,
     points: Object.entries(draft.points).map(([name, at]) => ({ name, at })),
     bbox: unionBBox(segs.map(segmentBBox)),
