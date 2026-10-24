@@ -170,6 +170,7 @@ Cada bloque es una función pura `draft(medidas, opciones) → Draft` en TypeScr
 - Selección de piezas, tallas y capas (márgenes, marcas, construcción) a exportar.
 - SVG con unidades en mm.
 - Disposición automática simple (colocación de piezas sin solaparse) con ajuste manual.
+- Enviar a a0-to-domestic para mosaico doméstico (ver docs/integrations/a0-to-domestic.md)
 
 ## 10. Persistencia
 
@@ -192,7 +193,7 @@ Cada bloque es una función pura `draft(medidas, opciones) → Draft` en TypeScr
 - **F3:** Resto de bloques (manga, falda, pantalón mujer, bloques hombre, pantalón hombre).
 - **F4:** Operaciones de edición (separar, espejar, pinzas, márgenes, marcas, deshacer).
 - **F5:** Reglas de patronaje a tamaño real.
-- **F6:** Exportación (PDF A0 / hoja única, SVG).
+- **F6:** Exportación (PDF A0 / hoja única, SVG), integración a0-to-domestic.
 - **F7:** Escalado anidado y reproducción de operaciones entre tallas.
 - **v2:** DXF-AAMA, transformaciones (desplazar y abrir), app de escritorio (Tauri) si hace falta acceso a plóter.
 
