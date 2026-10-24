@@ -1,0 +1,246 @@
+/* Editor shell (docs/UI.md §1, mockup at 1536 px). */
+.editor {
+  display: grid;
+  grid-template-columns: 155px 235px minmax(0, 1fr);
+  grid-template-rows: 66px minmax(0, 1fr);
+  height: 100vh;
+  min-height: 640px;
+  overflow: hidden;
+}
+
+.topbar {
+  grid-column: 1 / -1;
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  grid-template-rows: minmax(0, 1fr) 245px;
+  gap: var(--sp-2);
+  padding: var(--sp-2);
+  min-height: 0;
+}
+
+.workspace > .canvas-card {
+  grid-area: 1 / 1;
+}
+
+.workspace > .bottom-center {
+  grid-area: 2 / 1;
+}
+
+.workspace > .details-panel {
+  grid-area: 1 / 2;
+}
+
+.workspace > .user-measures {
+  grid-area: 2 / 2;
+}
+
+.bottom-center {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr);
+  gap: var(--sp-2);
+  min-height: 0;
+}
+
+/* ---------- top bar ---------- */
+.topbar {
+  display: flex;
+  align-items: center;
+  background: var(--nav-bg);
+  color: var(--nav-text);
+  padding-right: var(--sp-4);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  width: 258px;
+  padding: 0 var(--sp-4) 0 22px;
+  color: #fff;
+}
+
+.brand-name {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.brand-tagline {
+  font-size: var(--fs-sm);
+  color: var(--nav-text-muted);
+}
+
+.doc-title {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding-left: var(--sp-5);
+  border-left: 1px solid var(--nav-bg-active);
+  min-width: 0;
+}
+
+.doc-icon {
+  color: #fff;
+}
+
+.doc-title-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+}
+
+.title-input {
+  min-width: 0;
+  max-width: 360px;
+  padding: 2px 4px;
+  margin-left: -4px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: #fff;
+  font-size: 17px;
+  font-weight: 600;
+  field-sizing: content;
+}
+
+.title-input:hover,
+.title-input:focus {
+  border-color: var(--nav-bg-active);
+  background: var(--nav-bg-active);
+  outline: none;
+}
+
+.crumbs {
+  display: flex;
+  gap: var(--sp-1);
+  font-size: var(--fs-sm);
+  color: var(--nav-text);
+}
+
+.crumbs span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+}
+
+.crumbs svg {
+  color: var(--nav-text-muted);
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  margin-left: auto;
+}
+
+.nav-icon-btn {
+  color: var(--nav-text);
+}
+
+.nav-icon-btn:not(:disabled):hover {
+  background: var(--nav-bg-active);
+  color: #fff;
+}
+
+.segmented {
+  display: flex;
+  padding: 4px;
+  margin: 0 var(--sp-3);
+  border: 1px solid var(--nav-bg-active);
+  border-radius: var(--radius-md);
+}
+
+.segmented button {
+  height: 30px;
+  padding: 0 var(--sp-4);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--nav-text);
+  font-size: 13px;
+}
+
+.segmented button[aria-pressed='true'] {
+  background: var(--nav-bg-active);
+  color: #fff;
+  font-weight: 600;
+}
+
+.btn-outline-dark {
+  border-color: var(--nav-text-muted);
+  color: #fff;
+}
+
+.btn-outline-dark:hover {
+  background: var(--nav-bg-active);
+}
+
+.avatar {
+  display: grid;
+  place-items: center;
+  color: var(--nav-text);
+  margin-left: var(--sp-2);
+}
+
+/* ---------- navigation rail ---------- */
+.rail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  padding: var(--sp-5) var(--sp-2);
+  background: var(--nav-bg);
+}
+
+.rail-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 42px;
+  padding: 0 var(--sp-3);
+  white-space: nowrap;
+  border: none;
+  border-radius: var(--radius-md);
+  background: none;
+  color: var(--nav-text);
+  font-size: 13px;
+  text-align: left;
+}
+
+.rail-item:not(:disabled):hover,
+.rail-item[aria-current='page'] {
+  background: var(--nav-bg-active);
+  color: #fff;
+}
+
+.rail-spacer {
+  flex: 1;
+}
+
+/* ---------- narrower screens (UI.md §5, basic) ---------- */
+@media (max-width: 1199px) {
+  .editor {
+    grid-template-columns: 64px 235px minmax(0, 1fr);
+  }
+
+  .brand {
+    width: auto;
+  }
+
+  .brand > div,
+  .rail-label {
+    display: none;
+  }
+
+  .rail-item {
+    justify-content: center;
+    padding: 0;
+  }
+
+  .workspace {
+    grid-template-columns: minmax(0, 1fr) 260px;
+  }
+}

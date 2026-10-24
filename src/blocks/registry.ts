@@ -1,0 +1,131 @@
+/**
+ * Block registry: everything the editor needs to list, configure and draft a block. New blocks
+ * (F3) register here and the UI picks them up without changes.
+ */
+import type { Draft } from '../core'
+import {
+  getMeasurements,
+  getTable,
+  type KeyOf,
+  type MeasurementSystem,
+  type Sex,
+  type SizeOf,
+} from '../data'
+import { draftWomenBodice } from './womenBodice'
+
+export type BlockOptionValue = string
+
+/** A choice-type option shown as a select in the Diseño tab. */
+export interface BlockOptionSchema {
+  readonly key: string
+  readonly label: string
+  readonly choices: readonly { readonly value: BlockOptionValue; readonly label: string }[]
+  readonly default: BlockOptionValue
+}
+
+export type BlockOptions = Readonly<Record<string, BlockOptionValue>>
+
+/** How many times a piece is cut and from which material (piece label "x1 / (Tela)"). */
+export interface PieceCutInfo {
+  readonly count: number
+  readonly material: string
+}
+
+/** A "modelo" card: a named view of the block that focuses one piece. */
+export interface BlockView {
+  readonly id: string
+  readonly label: string
+  readonly pieceId: string
+}
+
+export interface BlockDef<S extends MeasurementSystem = MeasurementSystem> {
+  readonly id: string
+  /** Spanish label for the UI. */
+  readonly label: string
+  /** Breadcrumb trail after the sex, e.g. ['Cuerpo', 'Bloques base']. */
+  readonly category: readonly string[]
+  readonly sex: Sex
+  readonly system: S
+  readonly defaultSize: SizeOf<S>
+  readonly options: readonly BlockOptionSchema[]
+  readonly views: readonly BlockView[]
+  /** Cut info per piece id; pieces not listed default to DEFAULT_CUT. */
+  readonly cut?: Readonly<Record<string, PieceCutInfo>>
+  /** Pure draft function: measurements in mm (getMeasurements of `system`) and option values. */
+  readonly draft: (measurements: Readonly<Record<KeyOf<S>, number>>, options: BlockOptions) => Draft
+}
+
+/** A block of any measurement system. */
+export type AnyBlockDef = { [S in MeasurementSystem]: BlockDef<S> }[MeasurementSystem]
+
+export const DEFAULT_CUT: PieceCutInfo = { count: 1, material: 'Tela' }
+
+export const WOMEN_BODICE_BLOCK: BlockDef<'co-women-industrial'> = {
+  id: 'women-bodice',
+  label: 'Cuerpo base mujer',
+  category: ['Cuerpo', 'Bloques base'],
+  sex: 'female',
+  system: 'co-women-industrial',
+  defaultSize: '10',
+  options: [
+    {
+      key: 'length',
+      label: 'Largo',
+      choices: [
+        { value: 'hip', label: 'Hasta la cadera' },
+        { value: 'waist', label: 'Hasta la cintura' },
+      ],
+      default: 'hip',
+    },
+  ],
+  views: [
+    { id: 'front', label: 'Frente', pieceId: 'front' },
+    { id: 'back', label: 'Espalda', pieceId: 'back' },
+  ],
+  draft: (m, o) => draftWomenBodice(m, { length: o.length === 'waist' ? 'waist' : 'hip' }),
+}
+
+export const BLOCKS: readonly AnyBlockDef[] = [WOMEN_BODICE_BLOCK]
+
+export const DEFAULT_BLOCK_ID = WOMEN_BODICE_BLOCK.id
+
+export const getBlock = (id: string): AnyBlockDef => {
+  const block = BLOCKS.find((b) => b.id === id)
+  if (!block) throw new Error(`Unknown block "${id}"`)
+  return block
+}
+
+/** Default value of every option of the block. */
+export const defaultBlockOptions = (block: AnyBlockDef): Record<string, BlockOptionValue> =>
+  Object.fromEntries(block.options.map((o) => [o.key, o.default]))
+
+/** Option values restricted to the block's schema (unknown keys dropped, invalid values reset). */
+export const sanitizeBlockOptions = (
+  block: AnyBlockDef,
+  options: Readonly<Record<string, unknown>>,
+): Record<string, BlockOptionValue> =>
+  Object.fromEntries(
+    block.options.map((o) => {
+      const v = options[o.key]
+      return [o.key, o.choices.some((c) => c.value === v) ? (v as string) : o.default]
+    }),
+  )
+
+/** Size ids of the block's measurement system, in table order. */
+export const blockSizes = (block: AnyBlockDef): readonly string[] =>
+  getTable(block.system).sizes.map((s) => s.id)
+
+export const isBlockSize = (block: AnyBlockDef, size: string): boolean =>
+  blockSizes(block).includes(size)
+
+/** Draft a block for one size of its system. Throws if the size does not belong to it. */
+export const draftBlock = (block: AnyBlockDef, size: string, options: BlockOptions = {}): Draft => {
+  if (!isBlockSize(block, size)) throw new Error(`Size "${size}" is not in "${block.system}"`)
+  const merged = { ...defaultBlockOptions(block), ...options }
+  // The union of block types cannot correlate `system` with `draft`; each entry is typed above.
+  const draft = block.draft as (m: Readonly<Record<string, number>>, o: BlockOptions) => Draft
+  return draft(getMeasurements(block.system, size as SizeOf<typeof block.system>), merged)
+}
+
+export const pieceCut = (block: AnyBlockDef, pieceId: string): PieceCutInfo =>
+  block.cut?.[pieceId] ?? DEFAULT_CUT
