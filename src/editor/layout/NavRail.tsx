@@ -9,7 +9,8 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { useEditorStore, type LeftTab } from '../store/editorStore'
-import { COMING_SOON, OUT_OF_V1 } from './controls'
+import { newProject } from '../store/projectManager'
+import { OUT_OF_V1, COMING_SOON } from './controls'
 
 interface NavItem {
   readonly label: string
@@ -18,15 +19,19 @@ interface NavItem {
   readonly tab?: LeftTab
   readonly active?: boolean
   readonly placeholder?: string
+  /** Opens the projects page. */
+  readonly projects?: boolean
+  /** Starts a fresh project. */
+  readonly create?: boolean
 }
 
 const ITEMS: readonly NavItem[] = [
   { label: 'Inicio', icon: House, placeholder: COMING_SOON },
-  { label: 'Nuevo patrón', icon: Plus, active: true, tab: 'design' },
-  { label: 'Mis patrones', icon: FolderOpen, placeholder: COMING_SOON },
+  { label: 'Nuevo patrón', icon: Plus, active: true, tab: 'design', create: true },
+  { label: 'Mis patrones', icon: FolderOpen, projects: true },
   { label: 'Biblioteca', icon: Library, placeholder: OUT_OF_V1 },
   { label: 'Medidas', icon: Ruler, tab: 'measurements' },
-  { label: 'Proyectos', icon: FolderKanban, placeholder: COMING_SOON },
+  { label: 'Proyectos', icon: FolderKanban, projects: true },
 ]
 
 /** Below this width the side panels are drawers (docs/UI.md §5; keep in sync with layout.css). */
@@ -46,6 +51,8 @@ function RailButton({ item }: { readonly item: NavItem }) {
       disabled={!!item.placeholder}
       title={item.placeholder ?? item.label}
       onClick={() => {
+        if (item.projects) useEditorStore.getState().setProjectsOpen(true)
+        if (item.create) void newProject()
         if (!item.tab) return
         setLeftTab(item.tab)
         // Narrow layout: the configuration panel is a drawer, open it.

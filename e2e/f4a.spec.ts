@@ -71,7 +71,10 @@ test('separate all, mirror, undo, redo and change size keep the pieces', async (
 test('context menu: cut on fold on the centre back, rotate and duplicate', async ({ page }) => {
   await separateAll(page)
   // The floating Capas panel sits over the back piece: collapse it.
-  await page.locator('.layers-head').click()
+  await page
+    .locator('.layers-head[aria-expanded="true"]')
+    .click({ timeout: 500 })
+    .catch(() => undefined)
   // Select the centre back edge, then right-click it.
   // (A vertical path has a zero-width box, which Playwright treats as hidden: click its centre.)
   const cb = await page.locator('[data-segment="back/back.cb"]').boundingBox()

@@ -240,8 +240,12 @@ Cada regla es un contorno cerrado (cuerpo) más sus **bordes de trabajo**: curva
 
 ## 10. Persistencia
 
-- Proyectos en IndexedDB; lista de proyectos; autoguardado.
-- Exportar/importar `.json` del proyecto (con versión de esquema).
+- **Proyectos en IndexedDB** (`idb-keyval`): un registro `spc:project:<id>` por proyecto y un índice `spc:projects:index` (resúmenes con miniatura) para la lista; `spc:projects:last` guarda el último abierto. Registro: `{ id, schemaVersion, title, blockId, system, size, blockOptions, advanced, operations, notes, layers, viewMode, createdAt, updatedAt, thumbnailSvg? }`. El id del proyecto abierto está en el store (`projectId`) y el título del editor es el del proyecto.
+- **Página «Mis patrones» / «Proyectos»** (diálogo): cuadrícula de tarjetas con miniatura SVG, título, bloque, talla y fecha de edición; acciones Abrir, Duplicar, Renombrar, Exportar y Eliminar (con confirmación), además de Nuevo e Importar. «Nuevo patrón» del carril crea un proyecto nuevo (guardando antes el actual).
+- **Autoguardado** con retardo de 1,5 s tras cualquier cambio de los campos persistidos (indicador «Guardando…» / «Guardado» junto a Guardar; Guardar fuerza el guardado). Al arrancar se reabre el último proyecto; si no hay ninguno se crea uno. La copia única anterior (`spc:project:current`) se migra una vez a un proyecto.
+- **Exportar/importar `.json`** (página de proyectos y menú de Guardar): `{ app: 'sewing-pattern-creator', schemaVersion, project }` (sin miniatura). Al importar se valida con los saneadores del store y los validadores de operaciones (se descartan y cuentan las operaciones no válidas) y se crea **siempre un proyecto nuevo**, sin sobrescribir. Un `schemaVersion` desconocido o más reciente da un error claro en español. `migrateProject(old)` lleva cualquier versión conocida a la actual con un `switch` por versión (hoy solo v1).
+- **Historial de deshacer/rehacer no se persiste**: al reabrir un proyecto se empieza con la pila vacía (las operaciones sí se guardan).
+- La vista (zoom, selección, herramienta) tampoco se guarda; sí la vista Trazo/Piezas y las capas visibles. El panel flotante Capas empieza plegado en la vista Piezas para no tapar las piezas.
 
 ## 11. Calidad / criterios de aceptación
 

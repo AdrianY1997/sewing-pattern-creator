@@ -11,7 +11,10 @@ const separateAll = async (page: Page) => {
   await page.getByTestId('separate-all').click()
   await expect(page.getByTestId('canvas-viewport')).toHaveAttribute('data-view', 'pieces')
   // The floating Capas panel sits over the back piece: collapse it.
-  await page.locator('.layers-head').click()
+  await page
+    .locator('.layers-head[aria-expanded="true"]')
+    .click({ timeout: 500 })
+    .catch(() => undefined)
 }
 
 test('seam allowance, notches by clicking, size change, undo and redo', async ({ page }) => {
@@ -111,7 +114,10 @@ test('Aplicar a todos, typed notch, delete a mark and the Costura layer toggle',
   await marks.last().getByTestId('mark-delete').click()
   await expect(marks).toHaveCount(count)
 
-  await page.locator('.layers-head').click()
+  await page
+    .locator('.layers-head[aria-expanded="false"]')
+    .click({ timeout: 500 })
+    .catch(() => undefined)
   await page.getByRole('checkbox', { name: 'Costura' }).uncheck()
   await expect(page.getByTestId('seam-line')).toHaveCount(0)
 })

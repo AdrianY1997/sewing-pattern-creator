@@ -21,7 +21,7 @@ import {
 } from '../canvas/calibration'
 import { IDENTITY_VIEW, panBy, zoomAt, type ViewTransform } from '../canvas/viewTransform'
 import { cachedDraft, statePattern } from './patternData'
-import { DEFAULT_LAYERS, type LayerId, type LayerVisibility } from './layers'
+import { DEFAULT_LAYERS, LAYERS, type LayerId, type LayerVisibility } from './layers'
 
 /** "Opciones avanzadas": stored now, applied by the editing operations of F4. */
 export interface AdvancedOptions {
@@ -112,12 +112,24 @@ export interface EditorData {
   readonly markText: string
   /** Diameter (mm) of the buttons placed by the Botón tool. */
   readonly buttonMm: number
+  /** Id of the project being edited (IndexedDB), or null until the projects are loaded. */
+  readonly projectId: string | null
+  /** The projects page (Mis patrones / Proyectos) is open. */
+  readonly projectsOpen: boolean
 }
 
 /** The part of the state saved by "Guardar". */
 export type ProjectSnapshot = Pick<
   EditorData,
-  'title' | 'blockId' | 'size' | 'blockOptions' | 'advanced' | 'notes' | 'operations'
+  | 'title'
+  | 'blockId'
+  | 'size'
+  | 'blockOptions'
+  | 'advanced'
+  | 'notes'
+  | 'operations'
+  | 'layers'
+  | 'viewMode'
 >
 
 export interface EditorActions {
@@ -157,6 +169,8 @@ export interface EditorActions {
   setDartTransfer(pending: PendingDartTransfer | null): void
   setMarkText(text: string): void
   setButtonMm(mm: number): void
+  setProjectId(id: string | null): void
+  setProjectsOpen(open: boolean): void
   loadSnapshot(snapshot: Partial<ProjectSnapshot>): void
   reset(): void
 }
@@ -199,6 +213,8 @@ const initialData = (): EditorData => {
     dartTransfer: null,
     markText: 'Texto',
     buttonMm: 12,
+    projectId: null,
+    projectsOpen: false,
   }
 }
 
@@ -222,6 +238,14 @@ export const sanitizeOperations = (v: unknown): Operation[] => {
     else console.warn(`Operación descartada al cargar el proyecto: ${problem}`, o)
   }
   return out
+}
+
+/** Layer visibility from a stored project: unknown or non-boolean entries use the defaults. */
+export const sanitizeLayers = (v: unknown): LayerVisibility => {
+  const l = (typeof v === 'object' && v !== null ? v : {}) as Record<string, unknown>
+  return Object.fromEntries(
+    LAYERS.map((d) => [d.id, typeof l[d.id] === 'boolean' ? l[d.id] : d.defaultVisible]),
+  ) as Record<LayerId, boolean>
 }
 
 const clampMm = (v: unknown, fallback: number, max: number): number =>
@@ -281,6 +305,8 @@ export const selectSnapshot = (s: EditorData): ProjectSnapshot => ({
   advanced: s.advanced,
   notes: s.notes,
   operations: s.operations,
+  layers: s.layers,
+  viewMode: s.viewMode,
 })
 
 /** `patch` plus the selection of the state it produces, with vanished ids cleared. */
@@ -399,6 +425,9 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
     if (Number.isFinite(mm) && mm > 0 && mm <= 100) set({ buttonMm: mm })
   },
 
+  setProjectId: (projectId) => set({ projectId }),
+  setProjectsOpen: (projectsOpen) => set({ projectsOpen }),
+
   loadSnapshot: (snap) => {
     let blockId = get().blockId
     try {
@@ -417,10 +446,13 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
       advanced: sanitizeAdvanced(snap.advanced),
       notes: typeof snap.notes === 'string' ? snap.notes : '',
       operations: sanitizeOperations(snap.operations),
+      layers: sanitizeLayers(snap.layers),
+      viewMode: snap.viewMode === 'pieces' ? 'pieces' : 'trace',
       undoStack: [],
       redoStack: [],
       selectedPieceId: null,
       selectedSegmentId: null,
+      dartTransfer: null,
     })
   },
 

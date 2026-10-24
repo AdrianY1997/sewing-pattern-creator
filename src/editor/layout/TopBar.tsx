@@ -1,4 +1,5 @@
 import {
+  ChevronDown,
   ChevronRight,
   CircleUser,
   Download,
@@ -10,12 +11,15 @@ import {
   Scissors,
   Shirt,
   Undo2,
+  Upload,
 } from 'lucide-react'
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { ExportDialog } from '../export/ExportDialog'
 import { useCurrentBlock } from '../store/useDraft'
-import { selectSnapshot, useEditorStore } from '../store/editorStore'
-import { saveProject } from '../store/projectStorage'
+import { useEditorStore } from '../store/editorStore'
+import { openProject, saveNow, useSaveStatus } from '../store/projectManager'
+import { downloadProjectJson, importProjectFromFile } from '../panels/ProjectsDialog'
+import '../panels/projects.css'
 import { COMING_SOON, OUT_OF_V1 } from './controls'
 
 const SEX_LABEL = { female: 'Mujer', male: 'Hombre' } as const
@@ -37,13 +41,33 @@ export function TopBar() {
   const redo = useEditorStore((s) => s.redo)
   const [exportOpen, setExportOpen] = useState(false)
   const closeExport = useCallback(() => setExportOpen(false), [])
+  const status = useSaveStatus((s) => s.status)
+  const projectId = useEditorStore((s) => s.projectId)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [menuNotice, setMenuNotice] = useState<{ text: string; error: boolean } | null>(null)
+  const importRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (!menuOpen) return
+    const onDown = (ev: PointerEvent) => {
+      if (!(ev.target instanceof Element) || !ev.target.closest('.save-menu-wrap'))
+        setMenuOpen(false)
+    }
+    const onKey = (ev: KeyboardEvent) => ev.key === 'Escape' && setMenuOpen(false)
+    window.addEventListener('pointerdown', onDown)
+    window.addEventListener('keydown', onKey)
+    return () => {
+      window.removeEventListener('pointerdown', onDown)
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [menuOpen])
 
   const save = () => {
     const done = (state: SaveState) => {
       setSaveState(state)
       window.setTimeout(() => setSaveState('idle'), 2000)
     }
-    saveProject(selectSnapshot(useEditorStore.getState())).then(
+    saveNow().then(
       () => done('saved'),
       () => done('error'),
     )
@@ -131,10 +155,90 @@ export function TopBar() {
           </button>
         </div>
 
-        <button type="button" className="btn btn-outline-dark" onClick={save}>
-          <Save size={18} />
-          {saveState === 'saved' ? 'Guardado' : saveState === 'error' ? 'Error' : 'Guardar'}
-        </button>
+        <span
+          className={status === 'error' ? 'save-status is-error' : 'save-status'}
+          role="status"
+          data-testid="save-status"
+          data-status={status}
+        >
+          {status === 'pending' || status === 'saving'
+            ? 'Guardando…'
+            : status === 'saved'
+              ? 'Guardado'
+              : status === 'error'
+                ? 'Sin guardar'
+                : ''}
+        </span>
+        <div className="save-menu-wrap">
+          <button type="button" className="btn btn-outline-dark" onClick={save}>
+            <Save size={18} />
+            {saveState === 'saved' ? 'Guardado' : saveState === 'error' ? 'Error' : 'Guardar'}
+          </button>
+          <button
+            type="button"
+            className="icon-btn nav-icon-btn"
+            aria-label="Más opciones de guardado"
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
+            onClick={() => setMenuOpen(!menuOpen)}
+          >
+            <ChevronDown size={16} />
+          </button>
+          {menuOpen && (
+            <div className="save-menu" role="menu">
+              <button
+                type="button"
+                role="menuitem"
+                disabled={!projectId}
+                onClick={() => {
+                  setMenuOpen(false)
+                  if (projectId) void downloadProjectJson(projectId)
+                }}
+              >
+                <Download size={14} aria-hidden /> Exportar proyecto (.json)
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setMenuNotice(null)
+                  importRef.current?.click()
+                }}
+              >
+                <Upload size={14} aria-hidden /> Importar proyecto
+              </button>
+              {menuNotice && (
+                <p
+                  className={
+                    menuNotice.error
+                      ? 'save-menu-notice project-notice is-error'
+                      : 'save-menu-notice project-notice'
+                  }
+                  role="status"
+                >
+                  {menuNotice.text}
+                </p>
+              )}
+            </div>
+          )}
+          <input
+            ref={importRef}
+            type="file"
+            accept=".json,application/json"
+            hidden
+            data-testid="topbar-import-input"
+            onChange={(ev) => {
+              const file = ev.target.files?.[0]
+              ev.target.value = ''
+              if (!file) return
+              void importProjectFromFile(file).then(async (r) => {
+                setMenuOpen(true)
+                if (r.id) await openProject(r.id)
+                setMenuNotice({ text: r.message, error: r.id === null })
+              })
+            }}
+          />
+        </div>
         <button
           type="button"
           className="btn btn-primary"

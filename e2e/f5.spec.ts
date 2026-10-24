@@ -22,7 +22,10 @@ const separateAll = async (page: Page) => {
   await expect(page.getByTestId('piece-outline')).toHaveCount(2)
   await page.getByTestId('separate-all').click()
   await expect(page.getByTestId('canvas-viewport')).toHaveAttribute('data-view', 'pieces')
-  await page.locator('.layers-head').click()
+  await page
+    .locator('.layers-head[aria-expanded="true"]')
+    .click({ timeout: 500 })
+    .catch(() => undefined)
 }
 
 /** Screen positions of the start and end of a segment's hit path. */
@@ -176,7 +179,10 @@ test.describe('F5 screenshots', () => {
     expect(fit.deviation).toBeLessThan(1.5)
     await page.goto('./')
     await expect(page.getByTestId('piece-outline')).toHaveCount(2)
-    await page.locator('.layers-head').click()
+    await page
+      .locator('.layers-head[aria-expanded="true"]')
+      .click({ timeout: 500 })
+      .catch(() => undefined)
     await zoomOn(page, curve)
     await page.getByRole('button', { name: 'Reglas' }).click()
     await page.getByRole('menuitemradio', { name: /Curvígrafo/ }).click()
@@ -192,7 +198,10 @@ test.describe('F5 screenshots', () => {
     await page.goto('./')
     await page.getByLabel('Tipo de prenda').selectOption('women-skirt')
     await expect(page.getByTestId('piece-outline')).toHaveCount(2)
-    await page.locator('.layers-head').click()
+    await page
+      .locator('.layers-head[aria-expanded="true"]')
+      .click({ timeout: 500 })
+      .catch(() => undefined)
     await zoomOn(page, curve)
     await page.getByRole('button', { name: 'Reglas' }).click()
     await page.getByRole('menuitemradio', { name: /cadera/ }).click()

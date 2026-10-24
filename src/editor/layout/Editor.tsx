@@ -9,7 +9,8 @@ import { LeftPanel } from '../panels/LeftPanel'
 import { PreviewCard } from '../panels/PreviewCard'
 import { UserMeasurementsCard } from '../panels/UserMeasurementsCard'
 import { useEditorStore } from '../store/editorStore'
-import { loadProject } from '../store/projectStorage'
+import { ProjectsDialog } from '../panels/ProjectsDialog'
+import { initProjects } from '../store/projectManager'
 import { NavRail } from './NavRail'
 import { TopBar } from './TopBar'
 
@@ -20,6 +21,7 @@ const isEditable = (t: EventTarget | null): boolean =>
 export function Editor() {
   const drawer = useEditorStore((s) => s.drawer)
   const calibrationOpen = useEditorStore((s) => s.calibrationOpen)
+  const projectsOpen = useEditorStore((s) => s.projectsOpen)
 
   useEffect(() => {
     if (!drawer) return
@@ -45,9 +47,7 @@ export function Editor() {
   }, [])
 
   useEffect(() => {
-    loadProject()
-      .then((snap) => snap && useEditorStore.getState().loadSnapshot(snap))
-      .catch(() => undefined) // no IndexedDB (private mode…): start from defaults
+    void initProjects()
   }, [])
 
   return (
@@ -72,6 +72,7 @@ export function Editor() {
         />
       )}
       {calibrationOpen && <CalibrationDialog />}
+      {projectsOpen && <ProjectsDialog />}
     </div>
   )
 }

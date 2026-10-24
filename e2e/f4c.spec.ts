@@ -9,7 +9,10 @@ const separateAll = async (page: Page, block?: string) => {
   await page.getByTestId('separate-all').click()
   await expect(page.getByTestId('canvas-viewport')).toHaveAttribute('data-view', 'pieces')
   // The floating Capas panel sits over the back piece: collapse it.
-  await page.locator('.layers-head').click()
+  await page
+    .locator('.layers-head[aria-expanded="true"]')
+    .click({ timeout: 500 })
+    .catch(() => undefined)
 }
 
 /** Screen centre of a segment's hit path (a straight segment: its midpoint). */

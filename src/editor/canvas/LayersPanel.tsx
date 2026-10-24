@@ -5,7 +5,14 @@ import { LAYERS } from '../store/layers'
 
 /** Floating "Capas" panel: one checkbox per canvas layer. */
 export function LayersPanel() {
-  const [open, setOpen] = useState(true)
+  const viewMode = useEditorStore((s) => s.viewMode)
+  // In Piezas the panel starts collapsed so it does not cover the pieces.
+  const [open, setOpen] = useState(viewMode !== 'pieces')
+  const [seenMode, setSeenMode] = useState(viewMode)
+  if (seenMode !== viewMode) {
+    setSeenMode(viewMode)
+    setOpen(viewMode !== 'pieces')
+  }
   const layers = useEditorStore((s) => s.layers)
   const setLayer = useEditorStore((s) => s.setLayer)
 

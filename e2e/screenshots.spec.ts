@@ -53,7 +53,10 @@ test('F4b: skirt and trousers separated, with seam allowance and notches', async
     await page.getByLabel('Tipo de prenda').selectOption(block)
     await page.getByTestId('separate-all').click()
     await expect(page.getByTestId('seam-line')).toHaveCount(2)
-    await page.locator('.layers-head').click()
+    await page
+      .locator('.layers-head[aria-expanded="true"]')
+      .click({ timeout: 500 })
+      .catch(() => undefined)
     // A notch added by clicking on the outline of the back piece (centre back, half way).
     await page.getByRole('button', { name: 'AÃ±adir piquete' }).click()
     const outline = await page
@@ -85,7 +88,10 @@ test('F4 fixes: women skirt separated, Piezas, with seam allowance', async ({ pa
   await page.getByTestId('separate-all').click()
   await expect(page.getByTestId('canvas-viewport')).toHaveAttribute('data-view', 'pieces')
   await expect(page.getByTestId('seam-line')).toHaveCount(2)
-  await page.locator('.layers-head').click()
+  await page
+    .locator('.layers-head[aria-expanded="true"]')
+    .click({ timeout: 500 })
+    .catch(() => undefined)
   await page.mouse.move(700, 900)
   await page.screenshot({ path: path.join(dir, 'fix-skirt.png') })
 })
@@ -93,7 +99,10 @@ test('F4 fixes: women skirt separated, Piezas, with seam allowance', async ({ pa
 test('F4c: bust dart transferred to the shoulder, men back split at the yoke', async ({ page }) => {
   await page.goto('./')
   await page.getByTestId('separate-all').click()
-  await page.locator('.layers-head').click()
+  await page
+    .locator('.layers-head[aria-expanded="true"]')
+    .click({ timeout: 500 })
+    .catch(() => undefined)
   await page.getByTestId('piece-item').filter({ hasText: 'Delantero' }).click()
   const box = await page.locator('.seg-hit[data-segment="front/front.shoulder"]').boundingBox()
   if (!box) throw new Error('no shoulder')
@@ -107,7 +116,10 @@ test('F4c: bust dart transferred to the shoulder, men back split at the yoke', a
   await page.goto('./')
   await page.getByRole('combobox', { name: 'Tipo de prenda' }).selectOption('men-bodice')
   await page.getByTestId('separate-all').click()
-  await page.locator('.layers-head').click()
+  await page
+    .locator('.layers-head[aria-expanded="true"]')
+    .click({ timeout: 500 })
+    .catch(() => undefined)
   const yoke = await page.locator('.seg-hit[data-segment="back/back.yoke"]').boundingBox()
   if (!yoke) throw new Error('no yoke')
   await page.mouse.click(yoke.x + yoke.width / 2, yoke.y + yoke.height / 2)
