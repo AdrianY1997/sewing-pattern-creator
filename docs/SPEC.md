@@ -156,6 +156,23 @@ Cada bloque es una función pura `draft(medidas, opciones) → Draft` en TypeScr
 - Deshacer/rehacer ilimitado.
 - Las ediciones se registran como una lista de operaciones que referencian IDs estables. Al cambiar de talla la lista se vuelve a aplicar al trazo nuevo. Si una operación ya no se puede aplicar, se avisa (no falla en silencio).
 
+### 7.1 Registro de operaciones (F4a, `src/core/ops`)
+
+`pattern = replay(draftBlock(bloque, talla, opciones), operaciones)`. Cada operación es JSON `{ id, type, ...params }` y solo referencia IDs del trazo (pieza, segmento, punto) o números que escribe el usuario (mm, grados). `replay` nunca lanza: una operación que no se puede aplicar se salta y devuelve `{ opId, message }` en `issues`; el editor lo muestra en el panel derecho sin bloquear.
+
+| Operación | Efecto |
+|---|---|
+| `extractPiece { pieceId }` / `extractAll` | Copia la geometría de la pieza (segmentos, líneas internas, marcas, puntos) a una pieza independiente con su propia transformación afín; el trazo conjunto no cambia. Idempotente por `pieceId`. La pieza nueva se coloca a la derecha de las ya separadas, a 30 mm. |
+| `transformPiece { pieceId, translate?, rotateDeg?, pivot? }` | Rota (grados, horario en pantalla) alrededor de `'center'` (centro de la caja) o de un punto con nombre, y luego traslada (mm). |
+| `mirrorPiece { pieceId, axis, keepOriginal }` | Eje `'vertical'`/`'horizontal'` por el centro de la caja, o `{ segmentId }`. Con `keepOriginal` añade una copia `${pieceId}~m` (`~m2`…). |
+| `cutOnFold { pieceId, foldSegmentId }` | Despliega la pieza sobre un borde recto (y los bordes colineales contiguos, p. ej. `back.cb` + `back.cbHip`): la mitad espejada lleva IDs `${id}~m`, el hilo no se duplica y queda marcada la línea de doblez. |
+| `duplicatePiece { pieceId, newId }`, `deletePiece`, `setPieceMeta { name?, cutCount?, fabric?, onFold? }` | Copiar, borrar (solo piezas separadas) y editar la etiqueta. |
+| `autoLayout { gapMm = 30 }` | Estantes: de mayor a menor alto, filas de hasta 1500 mm, cajas separadas ≥ `gapMm` (sin solapes). |
+
+- Rotar y espejar cambian solo la transformación de la pieza: los IDs de segmento se conservan y las operaciones siguientes los siguen resolviendo.
+- **Anclaje de escalado** (tallas anidadas en la vista Piezas): las tallas de cada pieza se superponen alineadas en (1) el inicio de la línea de doblez si se desplegó; si no, (2) el primer punto del contorno sobre la línea de centro (inicio, en orden de recorrido, del primer segmento `*.cb*` / `*.cf*`; p. ej. el punto de escote en el centro espalda); si no hay, (3) la esquina superior izquierda de la caja. Como los IDs son iguales en todas las tallas, (1) y (2) eligen el mismo punto de construcción en todas.
+- El editor guarda `operations[]` con el proyecto y pilas de deshacer/rehacer de listas de operaciones; un arrastre (Mover/Rotar) genera una sola operación al soltar.
+
 ## 8. Escalado (todas las tallas)
 
 - Selector de talla y vista de tallas anidadas (todas superpuestas con color por talla).

@@ -33,6 +33,17 @@ test('F2b: segment selected with a snap marker', async ({ page }) => {
   await page.screenshot({ path: path.join(dir, 'f2b-editor.png') })
 })
 
+test('F4a: separated pieces, with and without nested sizes', async ({ page }) => {
+  await page.goto('./')
+  await page.getByTestId('separate-all').click()
+  await expect(page.getByTestId('canvas-viewport')).toHaveAttribute('data-view', 'pieces')
+  await page.mouse.move(700, 900)
+  await page.screenshot({ path: path.join(dir, 'f4a-pieces.png') })
+  await page.getByRole('checkbox', { name: 'Tallas' }).check()
+  await expect(page.getByTestId('layer-sizes')).toHaveCount(1)
+  await page.screenshot({ path: path.join(dir, 'f4a-pieces-sizes.png') })
+})
+
 test.describe('narrow', () => {
   test.use({ viewport: { width: 1000, height: 800 } })
   test('F2b: drawers at 1000 px', async ({ page }) => {

@@ -1,4 +1,7 @@
-/** Editor state (Zustand): current block, size, options, layers, view and selection. */
+/**
+ * Editor state (Zustand): current block, size, options, layers, view and selection, plus the
+ * operation log of the project with its undo/redo history (lists of operations).
+ */
 import { create } from 'zustand'
 import {
   DEFAULT_BLOCK_ID,
@@ -9,7 +12,7 @@ import {
   type BlockOptionValue,
 } from '../../blocks'
 import type { MeasurementSystem } from '../../data'
-import type { Vec } from '../../core'
+import type { Operation, OperationInput, Vec } from '../../core'
 import {
   DEFAULT_PX_PER_MM,
   isValidPxPerMm,
@@ -30,7 +33,15 @@ export interface AdvancedOptions {
 }
 
 export type LeftTab = 'design' | 'measurements' | 'settings'
-export type Tool = 'select' | 'pan'
+/**
+ * - select: pick pieces and segments
+ * - pan: drag pans the view
+ * - move: drag extracted pieces (Piezas view); elsewhere the drag pans the view
+ * - rotate: rotate extracted pieces by dragging (Shift: 15° steps)
+ */
+export type Tool = 'select' | 'pan' | 'move' | 'rotate'
+/** Canvas view: the combined construction ("Trazo") or the extracted pieces ("Piezas"). */
+export type ViewMode = 'trace' | 'pieces'
 /** Side panel shown as a drawer on narrow screens (docs/UI.md §5). */
 export type Drawer = 'left' | 'right'
 
@@ -61,12 +72,19 @@ export interface EditorData {
   readonly calibrationOpen: boolean
   /** Open drawer on narrow screens (ignored by the wide layout). */
   readonly drawer: Drawer | null
+  /** Editing operations of the project, replayed over the draft of the current size. */
+  readonly operations: readonly Operation[]
+  /** Previous operation lists (most recent last). */
+  readonly undoStack: readonly (readonly Operation[])[]
+  /** Undone operation lists (most recent last). */
+  readonly redoStack: readonly (readonly Operation[])[]
+  readonly viewMode: ViewMode
 }
 
 /** The part of the state saved by "Guardar". */
 export type ProjectSnapshot = Pick<
   EditorData,
-  'title' | 'blockId' | 'size' | 'blockOptions' | 'advanced' | 'notes'
+  'title' | 'blockId' | 'size' | 'blockOptions' | 'advanced' | 'notes' | 'operations'
 >
 
 export interface EditorActions {
@@ -95,6 +113,11 @@ export interface EditorActions {
   setDrawer(drawer: Drawer | null): void
   setTool(tool: Tool): void
   setLeftTab(tab: LeftTab): void
+  /** Append operations as one undo step; ids are assigned here. */
+  applyOps(ops: OperationInput | readonly OperationInput[]): void
+  undo(): void
+  redo(): void
+  setViewMode(mode: ViewMode): void
   loadSnapshot(snapshot: Partial<ProjectSnapshot>): void
   reset(): void
 }
@@ -132,8 +155,29 @@ const initialData = (): EditorData => {
     ...calibrationState(loadCalibration()),
     calibrationOpen: false,
     drawer: null,
+    ...EMPTY_HISTORY,
+    viewMode: 'trace',
   }
 }
+
+const EMPTY_HISTORY = { operations: [], undoStack: [], redoStack: [] } as const
+
+let opCounter = 0
+/** Operation id, unique within a session (ids only need to be distinct). */
+export const newOpId = (): string =>
+  `op-${Date.now().toString(36)}-${(++opCounter).toString(36)}${Math.random().toString(36).slice(2, 6)}`
+
+/** Keep only well-formed operations from a stored project (replay reports the rest). */
+export const sanitizeOperations = (v: unknown): Operation[] =>
+  Array.isArray(v)
+    ? (v.filter(
+        (o: unknown) =>
+          typeof o === 'object' &&
+          o !== null &&
+          typeof (o as { id?: unknown }).id === 'string' &&
+          typeof (o as { type?: unknown }).type === 'string',
+      ) as Operation[])
+    : []
 
 const calibrationState = (v: number | null) => ({
   pxPerMm: v ?? DEFAULT_PX_PER_MM,
@@ -147,6 +191,7 @@ export const selectSnapshot = (s: EditorData): ProjectSnapshot => ({
   blockOptions: s.blockOptions,
   advanced: s.advanced,
   notes: s.notes,
+  operations: s.operations,
 })
 
 export const useEditorStore = create<EditorState>()((set, get) => ({
@@ -165,6 +210,9 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
       blockOptions: defaultBlockOptions(block),
       selectedPieceId: null,
       selectedSegmentId: null,
+      // Operations refer to the pieces of the block: another block starts a new log.
+      ...EMPTY_HISTORY,
+      viewMode: 'trace',
     })
   },
 
@@ -202,6 +250,42 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
   setTool: (tool) => set({ tool }),
   setLeftTab: (leftTab) => set({ leftTab }),
 
+  applyOps: (input) => {
+    const list: readonly OperationInput[] = Array.isArray(input) ? input : [input as OperationInput]
+    if (list.length === 0) return
+    const { operations, undoStack } = get()
+    const added = list.map((o) => ({ ...o, id: newOpId() }) as Operation)
+    set({
+      operations: [...operations, ...added],
+      undoStack: [...undoStack, operations],
+      redoStack: [],
+    })
+  },
+  undo: () => {
+    const { operations, undoStack, redoStack } = get()
+    const prev = undoStack[undoStack.length - 1]
+    if (!prev) return
+    set({
+      operations: prev,
+      undoStack: undoStack.slice(0, -1),
+      redoStack: [...redoStack, operations],
+    })
+  },
+  redo: () => {
+    const { operations, undoStack, redoStack } = get()
+    const next = redoStack[redoStack.length - 1]
+    if (!next) return
+    set({
+      operations: next,
+      undoStack: [...undoStack, operations],
+      redoStack: redoStack.slice(0, -1),
+    })
+  },
+  setViewMode: (viewMode) => {
+    if (get().viewMode !== viewMode)
+      set({ viewMode, selectedPieceId: null, selectedSegmentId: null })
+  },
+
   loadSnapshot: (snap) => {
     let blockId = get().blockId
     try {
@@ -219,6 +303,9 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
       titleEdited: typeof snap.title === 'string' ? snap.title !== block.label : get().titleEdited,
       advanced: { ...DEFAULT_ADVANCED, ...snap.advanced },
       notes: typeof snap.notes === 'string' ? snap.notes : '',
+      operations: sanitizeOperations(snap.operations),
+      undoStack: [],
+      redoStack: [],
       selectedPieceId: null,
       selectedSegmentId: null,
     })

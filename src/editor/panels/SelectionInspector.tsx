@@ -2,14 +2,14 @@ import { Spline, X } from 'lucide-react'
 import { segmentLength, stripMeta } from '../../core'
 import { pieceMetrics } from '../canvas/draftGeometry'
 import { useEditorStore } from '../store/editorStore'
-import { useCurrentDraft } from '../store/useDraft'
+import { useDisplay } from '../store/useDraft'
 
 const cm = (mm: number) => `${(mm / 10).toFixed(1)} cm`
 const cm2 = (mm2: number) => `${(mm2 / 100).toFixed(1)} cm²`
 
 /** Small inspector of the current selection: segment length, piece perimeter/area/armhole. */
 export function SelectionInspector() {
-  const { draft, render } = useCurrentDraft()
+  const { draft, render } = useDisplay()
   const pieceId = useEditorStore((s) => s.selectedPieceId)
   const segmentId = useEditorStore((s) => s.selectedSegmentId)
   const selectPiece = useEditorStore((s) => s.selectPiece)

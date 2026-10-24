@@ -141,3 +141,72 @@ describe('editor store', () => {
     expect(st().drawer).toBeNull()
   })
 })
+
+describe('operations and undo/redo', () => {
+  beforeEach(() => st().reset())
+  const types = () => st().operations.map((o) => o.type)
+
+  it('applyOps appends with fresh ids as one undo step', () => {
+    expect(st().operations).toEqual([])
+    st().applyOps({ type: 'extractAll' })
+    st().applyOps([
+      { type: 'mirrorPiece', pieceId: 'front', axis: 'vertical', keepOriginal: false },
+      { type: 'transformPiece', pieceId: 'front', rotateDeg: 90 },
+    ])
+    expect(types()).toEqual(['extractAll', 'mirrorPiece', 'transformPiece'])
+    const ids = st().operations.map((o) => o.id)
+    expect(new Set(ids).size).toBe(3)
+    expect(st().undoStack).toHaveLength(2)
+    st().applyOps([]) // no-op
+    expect(st().undoStack).toHaveLength(2)
+  })
+
+  it('undo and redo walk the history; a new op clears redo', () => {
+    st().applyOps({ type: 'extractAll' })
+    st().applyOps({ type: 'mirrorPiece', pieceId: 'back', axis: 'horizontal', keepOriginal: false })
+    const full = st().operations
+    st().undo()
+    expect(types()).toEqual(['extractAll'])
+    st().undo()
+    expect(types()).toEqual([])
+    st().undo() // nothing left: ignored
+    expect(types()).toEqual([])
+    st().redo()
+    st().redo()
+    expect(st().operations).toEqual(full)
+    st().redo() // nothing left: ignored
+    expect(st().operations).toEqual(full)
+    st().undo()
+    st().applyOps({ type: 'autoLayout', gapMm: 30 })
+    expect(st().redoStack).toEqual([])
+    expect(types()).toEqual(['extractAll', 'autoLayout'])
+  })
+
+  it('switching block starts a new log; the view mode clears the selection', () => {
+    st().applyOps({ type: 'extractAll' })
+    st().setViewMode('pieces')
+    st().selectPiece('front')
+    st().setViewMode('trace')
+    expect(st().selectedPieceId).toBeNull()
+    st().setViewMode('pieces')
+    st().setBlock('women-skirt')
+    expect(st().operations).toEqual([])
+    expect(st().undoStack).toEqual([])
+    expect(st().viewMode).toBe('trace')
+  })
+
+  it('operations travel with the project snapshot (malformed ones dropped)', () => {
+    st().applyOps({ type: 'extractAll' })
+    const snap = selectSnapshot(st())
+    expect(snap.operations).toHaveLength(1)
+    st().reset()
+    st().loadSnapshot({
+      ...snap,
+      operations: [...snap.operations, { foo: 1 } as never, null as never],
+    })
+    expect(st().operations).toEqual(snap.operations)
+    expect(st().undoStack).toEqual([])
+    st().loadSnapshot({ blockId: 'women-bodice' }) // old save without operations
+    expect(st().operations).toEqual([])
+  })
+})

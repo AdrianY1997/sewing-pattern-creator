@@ -8,6 +8,7 @@ import {
   getMeasurement,
   getMeasurements,
   getTable,
+  measurementLabel,
   type MeasurementSystem,
 } from '.'
 
@@ -141,5 +142,19 @@ describe('grading irregularities', () => {
     const original = new Set(t.rows.map((r) => r.key))
     expect(irr.filter((i) => original.has(i.key))).toEqual([])
     expect(irr.map((i) => i.key).sort()).toEqual(['halfJeansBottomWidth', 'thigh'])
+  })
+})
+
+describe('measurementLabel', () => {
+  it('marks every half measure "(1/2)" exactly once', () => {
+    const men = getTable('es-men-easd')
+    const chest = men.rows.find((r) => r.key === 'chest')!
+    expect(measurementLabel(chest)).toBe('Pecho (1/2)')
+    for (const t of Object.values(MEASUREMENT_TABLES))
+      for (const r of [...t.rows, ...t.complementary]) {
+        const label = measurementLabel(r)
+        expect(label.includes('(1/2)')).toBe(r.kind === 'half' || r.label.includes('(1/2)'))
+        expect(label.split('(1/2)').length).toBeLessThanOrEqual(2)
+      }
   })
 })

@@ -1,5 +1,5 @@
 import { ArrowRight, Pencil, User } from 'lucide-react'
-import { getTable, type MeasurementKey } from '../../data'
+import { getTable, measurementLabel, type MeasurementKey } from '../../data'
 import { COMING_SOON, Select } from '../layout/controls'
 import { useEditorStore } from '../store/editorStore'
 import { formatCm } from './format'
@@ -53,7 +53,7 @@ export function UserMeasurementsCard() {
       <dl className="measure-list">
         {rows.map((r) => (
           <div key={r.key}>
-            <dt>{r.label}</dt>
+            <dt>{measurementLabel(r)}</dt>
             <dd>{formatCm(r.valuesCm[index])}</dd>
           </div>
         ))}

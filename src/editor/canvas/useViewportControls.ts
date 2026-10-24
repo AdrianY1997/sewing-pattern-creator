@@ -1,7 +1,8 @@
 /**
  * Pan/zoom/cursor handling of the canvas viewport:
  * - wheel: zoom at the cursor; shift + wheel: pan
- * - middle-button drag, space + drag, or drag with the "Mover" tool: pan
+ * - middle-button drag, space + drag, or drag with the "Mover" tool (except on an extracted
+ *   piece in the Piezas view, which the canvas drags instead): pan
  */
 import { useEffect, useRef, useState, type PointerEvent, type RefObject } from 'react'
 import type { Vec } from '../../core'
@@ -77,7 +78,9 @@ export function useViewportControls(ref: RefObject<HTMLElement | null>): Viewpor
       // Floating panels (Capas, zoom, readout) live in the viewport but are not canvas.
       if (!(ev.target instanceof Element) || !ev.target.closest('.canvas-svg')) return
       const store = useEditorStore.getState()
-      const pan = ev.button === 1 || (ev.button === 0 && (spaceDown || store.tool === 'pan'))
+      const pan =
+        ev.button === 1 ||
+        (ev.button === 0 && (spaceDown || store.tool === 'pan' || store.tool === 'move'))
       if (pan) {
         ev.preventDefault()
         ev.currentTarget.setPointerCapture(ev.pointerId)

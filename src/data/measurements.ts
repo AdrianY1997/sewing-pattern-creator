@@ -132,3 +132,10 @@ export const findGradingIrregularities = <K extends string, Z extends string>(
   }
   return out
 }
+
+/**
+ * UI label of a measurement row: half measures (kind `half`) are marked "(1/2)", e.g. the EASD
+ * "Pecho" becomes "Pecho (1/2)"; labels that already say so are kept as they are.
+ */
+export const measurementLabel = (row: { readonly label: string; readonly kind: string }): string =>
+  row.kind === 'half' && !/\(1\/2\)/.test(row.label) ? `${row.label} (1/2)` : row.label

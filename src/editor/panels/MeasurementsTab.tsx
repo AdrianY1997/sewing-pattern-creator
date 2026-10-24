@@ -1,4 +1,4 @@
-import { getTable, type ComplementaryRow, type MeasurementRow } from '../../data'
+import { getTable, measurementLabel, type ComplementaryRow, type MeasurementRow } from '../../data'
 import { useEditorStore } from '../store/editorStore'
 import { formatCm } from './format'
 
@@ -17,7 +17,7 @@ function RowGroup({ title, rows, index }: { title: string; rows: readonly Row[];
       {rows.map((r) => (
         <tr key={r.key} data-key={r.key}>
           <th scope="row">
-            {r.label}
+            {measurementLabel(r)}
             {isDerived(r) && (
               <span className="badge" title={'method' in r ? r.method : undefined}>
                 derivado

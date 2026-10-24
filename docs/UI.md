@@ -108,7 +108,7 @@ Referencia: `docs/example-layout.png` (maqueta a 1536 px de ancho). El editor es
 | Medidas del usuario / pestaña Medidas | Tablas de medidas del SPEC; "Perfil" = juego de medidas guardado; Editar abre la tabla completa |
 | Tipo de prenda / Modelo / Estilo / Tipo de cuerpo | Bloques base del SPEC (cuerpo, manga, falda, pantalón; mujer y hombre); Frente/Espalda = vistas del bloque |
 | Opciones avanzadas | Margen de costura, dobladillo y pinzas según F4; "Corte al bies" puede ser placeholder |
-| Barra de herramientas | F2: Seleccionar, Mover, zoom/paneo; Escalar, Rotar, Añadir/Eliminar punto, Curva, Recta, Simetría, Espejo se habilitan según F4 (mientras tanto, deshabilitados) |
+| Barra de herramientas | F2: Seleccionar, zoom/paneo. F4a: Mover (arrastra piezas separadas con snap; en el trazo mueve la vista), Rotar (arrastrar; Mayús = pasos de 15°), Simetría (eje vertical o arista seleccionada) y Espejo (eje horizontal) sobre la pieza seleccionada; conmutador **Trazo / Piezas** a la derecha. Escalar, Añadir/Eliminar punto, Curva y Recta siguen deshabilitados |
 | Capas, zoom, rejilla, lectura X/Y | F2 |
 | Piezas y Detalles del patrón | F2; "Guardar como plantilla" fuera de v1 si no hay almacenamiento |
 | Deshacer/rehacer, Exportar | F4 / F6 (PDF, SVG) |

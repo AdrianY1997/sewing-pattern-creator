@@ -4,7 +4,9 @@ import { pieceCut } from '../../blocks'
 import { getTable } from '../../data'
 import { OUT_OF_V1 } from '../layout/controls'
 import { useEditorStore } from '../store/editorStore'
-import { useCurrentBlock, useCurrentDraft } from '../store/useDraft'
+import { useCurrentBlock, useCurrentDraft, useCurrentPattern } from '../store/useDraft'
+import { pieceActions } from '../canvas/pieceActions'
+import { PieceEditor, ReplayIssues } from './PieceEditor'
 import { PieceThumbnail } from './PieceThumbnail'
 import { SelectionInspector } from './SelectionInspector'
 
@@ -37,26 +39,75 @@ function SizeChips() {
 
 function PieceList() {
   const block = useCurrentBlock()
-  const { render } = useCurrentDraft()
+  const mode = useEditorStore((s) => s.viewMode)
+  const trace = useCurrentDraft().render
+  const pattern = useCurrentPattern()
   const selected = useEditorStore((s) => s.selectedPieceId)
   const selectPiece = useEditorStore((s) => s.selectPiece)
+  const extracted = pattern.result.pattern.pieces
+  const isExtracted = (id: string) => extracted.some((p) => p.id === id)
+  const render = mode === 'pieces' ? pattern.render : trace
+  const selectedPiece = mode === 'pieces' ? extracted.find((p) => p.id === selected) : undefined
+
   return (
     <section className="details-section">
-      <h3 className="section-title">Piezas</h3>
-      <ul className="piece-list">
-        {render.pieces.map((p) => (
-          <li key={p.id}>
+      <div className="section-head">
+        <h3 className="section-title">Piezas</h3>
+        <div className="section-actions">
+          <button
+            type="button"
+            className="btn btn-small"
+            data-testid="separate-all"
+            onClick={() => pieceActions.separateAll()}
+          >
+            Separar todas
+          </button>
+          {mode === 'pieces' && extracted.length > 1 && (
             <button
               type="button"
-              className="piece-item"
-              data-testid="piece-item"
-              aria-pressed={selected === p.id}
-              onClick={() => selectPiece(selected === p.id ? null : p.id)}
+              className="btn btn-small"
+              onClick={() => pieceActions.autoLayout()}
             >
-              <PieceThumbnail render={render} pieceIds={[p.id]} size={28} />
-              <span className="piece-name">{p.name}</span>
-              <span className="muted">x{pieceCut(block, p.id).count}</span>
+              Organizar
             </button>
+          )}
+        </div>
+      </div>
+      {mode === 'pieces' && extracted.length === 0 && (
+        <p className="muted small">Aún no hay piezas separadas.</p>
+      )}
+      <ul className="piece-list" data-view={mode}>
+        {render.pieces.map((p) => (
+          <li key={p.id}>
+            <div className="piece-row">
+              <button
+                type="button"
+                className="piece-item"
+                data-testid="piece-item"
+                data-piece={p.id}
+                aria-pressed={selected === p.id}
+                onClick={() => selectPiece(selected === p.id ? null : p.id)}
+              >
+                <PieceThumbnail render={render} pieceIds={[p.id]} size={28} />
+                <span className="piece-name">{p.name}</span>
+                <span className="muted">x{p.label?.count ?? pieceCut(block, p.id).count}</span>
+              </button>
+              {mode === 'trace' && (
+                <button
+                  type="button"
+                  className="btn btn-small piece-separate"
+                  data-testid="piece-separate"
+                  disabled={isExtracted(p.id)}
+                  title={
+                    isExtracted(p.id) ? 'Ya está separada' : 'Separar como pieza independiente'
+                  }
+                  onClick={() => pieceActions.separate(p.id)}
+                >
+                  {isExtracted(p.id) ? 'Separada' : 'Separar'}
+                </button>
+              )}
+            </div>
+            {selectedPiece?.id === p.id && <PieceEditor piece={selectedPiece} />}
           </li>
         ))}
       </ul>
@@ -125,6 +176,7 @@ export function DetailsPanel() {
       </div>
       <SelectionInspector />
       <SizeChips />
+      <ReplayIssues />
       <PieceList />
       <NotesSection />
       <button type="button" className="btn btn-soft" disabled title={OUT_OF_V1}>

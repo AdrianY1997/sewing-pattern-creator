@@ -13,6 +13,9 @@ import { loadProject } from '../store/projectStorage'
 import { NavRail } from './NavRail'
 import { TopBar } from './TopBar'
 
+const isEditable = (t: EventTarget | null): boolean =>
+  t instanceof HTMLElement && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))
+
 /** The editor shell: regions and proportions of docs/UI.md §1. */
 export function Editor() {
   const drawer = useEditorStore((s) => s.drawer)
@@ -25,6 +28,21 @@ export function Editor() {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [drawer])
+
+  // Undo / redo: Ctrl+Z, Ctrl+Shift+Z, Ctrl+Y (Cmd on macOS); text fields keep their own undo.
+  useEffect(() => {
+    const onKey = (ev: KeyboardEvent) => {
+      if (!(ev.ctrlKey || ev.metaKey) || ev.altKey || isEditable(ev.target)) return
+      const key = ev.key.toLowerCase()
+      const store = useEditorStore.getState()
+      if (key === 'z' && !ev.shiftKey) store.undo()
+      else if ((key === 'z' && ev.shiftKey) || key === 'y') store.redo()
+      else return
+      ev.preventDefault()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
 
   useEffect(() => {
     loadProject()

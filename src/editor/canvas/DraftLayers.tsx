@@ -2,13 +2,14 @@ import { memo } from 'react'
 import { pieceCut, type AnyBlockDef } from '../../blocks'
 import { add, normalize, perp, scale as scaleVec, sub, type Vec } from '../../core'
 import type { LayerVisibility } from '../store/layers'
+import type { SizeOutline } from '../store/useDraft'
 import type { DraftRender, GrainlineRender, PieceRender } from './draftGeometry'
 
 export interface DraftLayersProps {
   readonly render: DraftRender
   readonly block: AnyBlockDef
-  /** Drafts of every size, for the Tallas layer (empty when hidden). */
-  readonly sizes: readonly { readonly size: string; readonly render: DraftRender }[]
+  /** Outlines of every size, for the Tallas layer (empty when hidden). */
+  readonly sizes: readonly SizeOutline[]
   readonly layers: LayerVisibility
   readonly selectedPieceId: string | null
   readonly selectedSegmentId: string | null
@@ -40,23 +41,26 @@ function Grainline({ g, head }: { g: GrainlineRender; head: number }) {
 }
 
 function PieceLabel({ piece, block, px }: { piece: PieceRender; block: AnyBlockDef; px: number }) {
-  const cut = pieceCut(block, piece.id)
+  const cut = piece.label ?? { ...pieceCut(block, piece.id), onFold: false }
   const fs = 14 * px
+  const { x, y } = piece.labelAt
   return (
     <text
       className="piece-label"
-      x={piece.centroid.x}
-      y={piece.centroid.y - fs * 1.2}
+      data-testid="piece-label"
+      data-piece={piece.id}
+      x={x}
+      y={y - fs * 1.2}
       fontSize={fs}
       strokeWidth={4 * px}
       textAnchor="middle"
     >
-      <tspan x={piece.centroid.x}>{piece.name}</tspan>
-      <tspan x={piece.centroid.x} dy="1.2em">
+      <tspan x={x}>{piece.name}</tspan>
+      <tspan x={x} dy="1.2em">
         x{cut.count}
       </tspan>
-      <tspan x={piece.centroid.x} dy="1.2em">
-        ({cut.material})
+      <tspan x={x} dy="1.2em">
+        ({cut.material}){cut.onFold ? ' · al doblez' : ''}
       </tspan>
     </text>
   )
@@ -112,9 +116,9 @@ export const DraftLayers = memo(function DraftLayers(props: DraftLayersProps) {
     <>
       {layers.sizes && (
         <g className="layer-sizes" data-testid="layer-sizes">
-          {sizes.flatMap(({ size, render: r }) =>
-            r.pieces.map((p) => <path key={`${size}:${p.id}`} d={p.d} data-size={size} />),
-          )}
+          {sizes.map((o) => (
+            <path key={o.key} d={o.d} data-size={o.size} />
+          ))}
         </g>
       )}
       {layers.guides && (
@@ -142,6 +146,9 @@ export const DraftLayers = memo(function DraftLayers(props: DraftLayersProps) {
             >
               <title>{p.name}</title>
             </path>
+          ))}
+          {render.folds.map((l) => (
+            <path key={l.id} className="fold-line" data-testid="fold-line" d={l.d} />
           ))}
           {render.grainlines.map((g) => (
             <Grainline key={g.id} g={g} head={9 * px} />
@@ -194,6 +201,7 @@ export const DraftLayers = memo(function DraftLayers(props: DraftLayersProps) {
               className="seg-hit"
               d={sg.d}
               data-segment={sg.id}
+              data-piece={sg.pieceId}
               onPointerDown={(ev) => {
                 if (ev.button !== 0) return
                 ev.stopPropagation()

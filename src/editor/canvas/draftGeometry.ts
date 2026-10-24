@@ -38,8 +38,18 @@ export interface PieceRender {
   /** Outline vertices (segment joins). */
   readonly vertices: readonly Vec[]
   readonly bbox: BBox
-  /** Area centroid: where the piece label goes. */
+  /** Area centroid. */
   readonly centroid: Vec
+  /** Where the label goes: the centroid, moved off the areas shared with other pieces. */
+  readonly labelAt: Vec
+  /** Label fields of an extracted piece (draft pieces use the block's cut info). */
+  readonly label?: PieceLabelInfo
+}
+
+export interface PieceLabelInfo {
+  readonly count: number
+  readonly material: string
+  readonly onFold: boolean
 }
 
 export interface LineRender {
@@ -125,18 +135,21 @@ export interface DraftRender {
   readonly notches: readonly NotchRender[]
   /** Construction lines and internal reference lines (e.g. the waist line of a hip block). */
   readonly guides: readonly LineRender[]
+  /** Fold lines of pieces unfolded with "cortar al doblez". */
+  readonly folds: readonly LineRender[]
   readonly points: readonly { readonly name: string; readonly at: Vec }[]
   /** Every outline, dart and guide segment, for hover/selection (grainlines excluded). */
   readonly segments: readonly SegmentRender[]
   readonly bbox: BBox
 }
 
-export type InternalKind = 'grain' | 'dart' | 'guide'
+export type InternalKind = 'grain' | 'dart' | 'guide' | 'fold'
 
 /** Classify an internal line of a piece by its grainline mark or its id. */
 export const classifyInternal = (piece: Piece, segmentId: string): InternalKind => {
   if (piece.marks.some((m) => m.kind === 'grainline' && m.data?.segment === segmentId))
     return 'grain'
+  if (segmentId === 'fold' || segmentId.endsWith('/fold')) return 'fold'
   return /dart/i.test(segmentId) ? 'dart' : 'guide'
 }
 
@@ -173,8 +186,12 @@ export function buildDraftRender(draft: Draft): DraftRender {
   const darts: LineRender[] = []
   const guides: LineRender[] = []
   const grainlines: GrainlineRender[] = []
+  const folds: LineRender[] = []
+  const lists = { dart: darts, guide: guides, fold: folds }
 
-  const pieces = draft.pieces.map((pc): PieceRender => {
+  const polys = draft.pieces.map((pc) => flattenPath(piecePath(draft, pc.id), 0.5))
+  const labels = labelPositions(polys)
+  const pieces = draft.pieces.map((pc, i): PieceRender => {
     const p = piecePath(draft, pc.id)
     pc.outline.forEach((r) => used.add(r.segment))
     for (const id of pc.internalLines) {
@@ -183,7 +200,7 @@ export function buildDraftRender(draft: Draft): DraftRender {
       if (kind === 'grain') {
         const s = draft.segments[id]
         grainlines.push({ id, pieceId: pc.id, from: s.p0, to: s.kind === 'line' ? s.p1 : s.p3 })
-      } else (kind === 'dart' ? darts : guides).push({ id, d: segD(draft, id), pieceId: pc.id })
+      } else lists[kind].push({ id, d: segD(draft, id), pieceId: pc.id })
     }
     return {
       id: pc.id,
@@ -191,7 +208,8 @@ export function buildDraftRender(draft: Draft): DraftRender {
       d: toSvgPathData(p),
       vertices: p.segments.map(segStart),
       bbox: pathBBox(p),
-      centroid: polygonCentroid(flattenPath(p, 0.5)),
+      centroid: polygonCentroid(polys[i]),
+      labelAt: labels[i],
     }
   })
 
@@ -230,6 +248,7 @@ export function buildDraftRender(draft: Draft): DraftRender {
 
   const segs = Object.values(draft.segments).map(stripMeta)
   return {
+    folds,
     segments,
     pieces,
     darts,
@@ -238,8 +257,59 @@ export function buildDraftRender(draft: Draft): DraftRender {
     notches,
     guides,
     points: Object.entries(draft.points).map(([name, at]) => ({ name, at })),
-    bbox: unionBBox(segs.map(segmentBBox)),
+    bbox: segs.length ? unionBBox(segs.map(segmentBBox)) : { minX: 0, minY: 0, maxX: 0, maxY: 0 },
   }
+}
+
+/** Even-odd point-in-polygon test. */
+export const pointInPolygon = (p: Vec, poly: readonly Vec[]): boolean => {
+  let inside = false
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const a = poly[i]
+    const b = poly[j]
+    if (a.y > p.y !== b.y > p.y && p.x < ((b.x - a.x) * (p.y - a.y)) / (b.y - a.y) + a.x)
+      inside = !inside
+  }
+  return inside
+}
+
+/** Grid samples per side used to find the free area of overlapping pieces. */
+const LABEL_SAMPLES = 48
+
+/**
+ * Label position of each polygon: its area centroid when it overlaps no other polygon; otherwise
+ * the centroid of the part that is NOT shared with the others (estimated on a grid of samples),
+ * snapped to the nearest free sample so it always lies inside that part. Falls back to the
+ * centroid when the polygon is entirely covered.
+ */
+export function labelPositions(polys: readonly (readonly Vec[])[]): Vec[] {
+  return polys.map((poly, i) => {
+    const centroid = polygonCentroid(poly)
+    if (poly.length < 3 || polys.length < 2) return centroid
+    const xs = poly.map((p) => p.x)
+    const ys = poly.map((p) => p.y)
+    const minX = Math.min(...xs)
+    const minY = Math.min(...ys)
+    const dx = (Math.max(...xs) - minX) / LABEL_SAMPLES
+    const dy = (Math.max(...ys) - minY) / LABEL_SAMPLES
+    const free: Vec[] = []
+    let shared = 0
+    for (let a = 0; a < LABEL_SAMPLES; a++)
+      for (let b = 0; b < LABEL_SAMPLES; b++) {
+        const p = { x: minX + (a + 0.5) * dx, y: minY + (b + 0.5) * dy }
+        if (!pointInPolygon(p, poly)) continue
+        if (polys.some((q, j) => j !== i && pointInPolygon(p, q))) shared++
+        else free.push(p)
+      }
+    if (shared === 0 || free.length === 0) return centroid
+    const m = {
+      x: free.reduce((s, p) => s + p.x, 0) / free.length,
+      y: free.reduce((s, p) => s + p.y, 0) / free.length,
+    }
+    return free.reduce((best, p) =>
+      (p.x - m.x) ** 2 + (p.y - m.y) ** 2 < (best.x - m.x) ** 2 + (best.y - m.y) ** 2 ? p : best,
+    )
+  })
 }
 
 export interface PieceMetrics {

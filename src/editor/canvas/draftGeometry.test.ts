@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { draftBlock, getBlock } from '../../blocks'
-import { pathBBox, piecePath, segmentLength } from '../../core'
+import { WOMEN_BODICE_BLOCK, draftBlock, getBlock } from '../../blocks'
+import { flattenPath, pathBBox, piecePath, segmentLength } from '../../core'
 import { measureWomenBodice } from '../../blocks/womenBodice'
 import {
   buildDraftRender,
   classifyInternal,
+  labelPositions,
   notchTicks,
   pieceMetrics,
+  pointInPolygon,
   polygonCentroid,
 } from './draftGeometry'
 
@@ -103,5 +105,30 @@ describe('notchTicks', () => {
     const r2 = buildDraftRender(draftBlock(getBlock('women-sleeve'), '10'))
     expect(r2.notches).toHaveLength(3)
     expect(r2.notches.flatMap((n) => n.ticks)).toHaveLength(4)
+  })
+})
+
+describe('label positions', () => {
+  it('moves the labels of overlapping pieces off the shared area', () => {
+    const draft = draftBlock(WOMEN_BODICE_BLOCK, '10')
+    const polys = draft.pieces.map((p) => flattenPath(piecePath(draft, p.id), 0.5))
+    const r = buildDraftRender(draft)
+    r.pieces.forEach((p, i) => {
+      expect(pointInPolygon(p.labelAt, polys[i])).toBe(true)
+      polys.forEach((q, j) => j !== i && expect(pointInPolygon(p.labelAt, q)).toBe(false))
+    })
+  })
+
+  it('keeps the centroid of a piece that overlaps nothing', () => {
+    const sq = [
+      { x: 0, y: 0 },
+      { x: 10, y: 0 },
+      { x: 10, y: 10 },
+      { x: 0, y: 10 },
+    ]
+    const far = sq.map((p) => ({ x: p.x + 100, y: p.y }))
+    const [a] = labelPositions([sq, far])
+    expect(a.x).toBeCloseTo(5)
+    expect(a.y).toBeCloseTo(5)
   })
 })

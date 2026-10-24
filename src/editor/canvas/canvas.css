@@ -404,3 +404,109 @@
   border-color: var(--primary);
   color: var(--primary);
 }
+
+/* ---------- F4a: view switch, piece editing ---------- */
+.view-switch {
+  display: flex;
+  align-self: center;
+  margin-left: auto;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--app-bg);
+}
+
+.view-switch button {
+  height: 28px;
+  padding: 0 var(--sp-3);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+
+.view-switch button[aria-pressed='true'] {
+  background: var(--panel-bg);
+  color: var(--primary);
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgb(17 26 51 / 0.12);
+}
+
+.fold-line {
+  fill: none;
+  stroke: var(--layer-outline);
+  stroke-width: 1px;
+  stroke-dasharray: 10 3 2 3;
+  pointer-events: none;
+}
+
+.viewport.tool-move .piece {
+  cursor: move;
+}
+
+.viewport.tool-rotate .piece {
+  cursor: alias;
+}
+
+.viewport.is-dragging,
+.viewport.is-dragging .piece {
+  cursor: grabbing;
+}
+
+.pieces-empty {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  max-width: 320px;
+  padding: var(--sp-4);
+  border-radius: var(--radius-md);
+  background: var(--panel-bg);
+  box-shadow: var(--shadow-float);
+  text-align: center;
+  font-size: var(--fs-md);
+}
+
+.pieces-empty p {
+  margin: 0 0 var(--sp-3);
+  color: var(--text-muted);
+}
+
+.context-menu {
+  position: absolute;
+  z-index: 20;
+  min-width: 190px;
+  padding: var(--sp-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--panel-bg);
+  box-shadow: var(--shadow-float);
+}
+
+.context-group + .context-group {
+  margin-top: var(--sp-1);
+  padding-top: var(--sp-1);
+  border-top: 1px solid var(--border);
+}
+
+.context-menu button {
+  display: block;
+  width: 100%;
+  padding: 6px var(--sp-3);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  text-align: left;
+  font-size: 13px;
+}
+
+.context-menu button:not(:disabled):hover {
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.context-menu button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}

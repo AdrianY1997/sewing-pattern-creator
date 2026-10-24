@@ -30,6 +30,10 @@ export function TopBar() {
   const drawer = useEditorStore((s) => s.drawer)
   const setDrawer = useEditorStore((s) => s.setDrawer)
   const toggleDrawer = (d: 'left' | 'right') => setDrawer(drawer === d ? null : d)
+  const canUndo = useEditorStore((s) => s.undoStack.length > 0)
+  const canRedo = useEditorStore((s) => s.redoStack.length > 0)
+  const undo = useEditorStore((s) => s.undo)
+  const redo = useEditorStore((s) => s.redo)
 
   const save = () => {
     const done = (state: SaveState) => {
@@ -98,8 +102,9 @@ export function TopBar() {
           type="button"
           className="icon-btn nav-icon-btn"
           aria-label="Deshacer"
-          title={COMING_SOON}
-          disabled
+          title="Deshacer (Ctrl+Z)"
+          disabled={!canUndo}
+          onClick={undo}
         >
           <Undo2 size={20} />
         </button>
@@ -107,8 +112,9 @@ export function TopBar() {
           type="button"
           className="icon-btn nav-icon-btn"
           aria-label="Rehacer"
-          title={COMING_SOON}
-          disabled
+          title="Rehacer (Ctrl+Mayús+Z / Ctrl+Y)"
+          disabled={!canRedo}
+          onClick={redo}
         >
           <Redo2 size={20} />
         </button>
