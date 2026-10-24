@@ -33,6 +33,8 @@ La tabla guarda cintura y cadera como medias medidas (`kind: 'half'`); el códig
 | `hipEase` | 40 mm en total → 1 cm por cuarto | **Elección** (Feller neto da 0; ver §6) |
 | `hipShift` | 20 mm: el delantero pierde 2 cm de cadera y la espalda los gana | Feller (neto: delantero ½ cadera − 2, espalda ½ cadera + 2) |
 | `backInseamEase` | 5 mm: la entrepierna trasera mide 0,5 cm menos que la delantera | Feller (punto 30: "0,5 cm de holgura para el bies") |
+| `crotchEase` | 0 en la función; **25 mm en el bloque** ("Holgura de tiro": 0, 1, 2, 2,5, 3, 4 cm) | **Elección** (§6.4): se suma al largo de tiro de la tabla |
+| `crotchExtensionEase` | 0 en la función; **30 mm en el bloque** (fijo, no es opción de la interfaz) | **Elección** (§6.4): se suma a las extensiones de tiro delantera y trasera |
 
 Constantes (`MEN_TROUSERS_CONSTANTS`): centro delantero 1 cm hacia dentro en la cintura; extensión trasera = ⅒ de media cadera + 1,5 cm desde el punto de tiro delantero; subida del centro espalda = ⅒ de media cadera − 1 cm; punto de curva trasero 1 cm más allá del delantero; pinza trasera 2 × 8 cm; rodilla y bajo: delantero 2 × ½ ancho − 2 cm, espalda 2 × ½ ancho + 2 cm.
 
@@ -105,9 +107,31 @@ Resultados talla 48: entrepierna delantera 845,21 y trasera 840,21 mm (0,5 cm me
 1. **Trazo neto (sin costuras)**: Feller incluye 1 cm de costura. Se quita así: cintura delantera ½ cintura + 2 → ½ cintura; cadera delantera ½ cadera → ½ cadera − 2; cintura trasera ½ cintura + 3 (con 1 cm de costura de costado) → ½ cintura + 2 de pinza; cadera trasera ½ cadera + 3 → ½ cadera + 2; extensión delantera ⅒ + 1 → ⅒; rodilla y bajo: ½ ancho a cada lado de la raya → ½ ancho − 1 delante (y + 1 detrás). El paso 2→20 (1 cm) solo quitaba la costura del centro delantero, por eso A20 = A2. El punto 30 de Feller ("19–10 − 1,5 cm: 1 cm de costura y 0,5 de holgura") queda en entrepierna trasera = delantera − 0,5 cm.
 2. **Línea de cadera**: Feller pone 1→2 = largo de cadera + 1 (el centímetro es la costura de cintura); neto, la cadera queda a la altura de cadera de la tabla. Tiro, rodilla y largo se miden desde la cintura neta.
 3. **Holgura de cadera**: Feller neto no deja holgura de cadera (la ½ cadera se reparte −2 / +2). Se añaden 4 cm en total (1 cm por cuarto) para que el bloque se pueda llevar; es opción (`hipEase`).
-4. **Tiro corto de la tabla**: el largo de tiro EASD (21,5 cm en la 48) solo queda 5,5 cm por debajo de la línea de cadera, cuando Feller trae 25 cm en su talla 48 y Aldrich da ~27 cm de "body rise". Se respeta la tabla (SPEC §3.2), pero el tiro sale corto: la holgura de muslo en la línea de tiro va de 10 mm (talla 40) a 59 mm (talla 54) y es 39 mm en la 48. Recomendación: comprobar el tiro con prueba de tela o sobrescribir la medida.
+4. **Tiro corto de la tabla**: el largo de tiro EASD (21,5 cm en la 48) solo queda 5,5 cm por debajo de la línea de cadera, cuando Feller trae 25 cm en su talla 48 y Aldrich da ~27 cm de "body rise". Se respeta la tabla (SPEC §3.2), pero el tiro sale corto: la holgura de muslo en la línea de tiro va de 10 mm (talla 40) a 59 mm (talla 54) y es 39 mm en la 48. Corrección: ver §6.4.
 5. **Anchos de rodilla y bajo**: la tabla EASD los da como "ancho" sin decir dónde se colocan; se siguen Feller y Tevipa (mitad del ancho delantero a cada lado de la raya, espalda 2 cm más ancha por lado). Con el trazo neto, el contorno del pantalón en la rodilla es 4 × ancho de rodilla y en el bajo 4 × ancho de camal. Son anchos de bloque base, holgados (contorno de bajo 56 cm en la 48).
 6. **Costado trasero**: A23 se resuelve numéricamente (circunferencia del largo de cintura) para que los costados midan igual (±10⁻⁶ mm), en lugar de copiar a mano el costado delantero como en Tevipa.
 7. **Pinza trasera**: Feller la pone en el punto medio de la cintura, escuadrada con ella, de 2 × 8 cm. No hay pinza delantera (Feller y Tevipa).
 8. **Curvas**: Béziers con las tangentes fijadas (tiro por A12 / A31, costado vertical en la cadera, entrepierna y costado tangentes a la recta de rodilla a bajo).
 9. **Irregularidades de la tabla**: la cintura salta +4 entre 48 y 50 y +3 entre 52 y 54 (SPEC §3.2); se refleja en la cintura del pantalón tal cual.
+10. **Holgura de tiro y de muslo**: ver §6.4.
+
+### 6.4 Holgura de tiro y holgura de muslo
+
+Holgura de muslo = ancho del patrón en la línea de tiro (delantero + espalda) − contorno de muslo de la tabla (§3.4.2). Con la tabla tal cual (largo de tiro 21,5 cm en la 48; Feller ≈ 25, Aldrich ≈ 27) queda entre 1 y 6 cm.
+
+**El largo de tiro casi no controla la holgura de muslo.** Bajar la línea de tiro solo mueve el punto donde se mide el ancho sobre las curvas de costado y entrepierna: unos 0,04 cm de holgura por cada cm de tiro. Incluso con 28 cm de tiro la talla 40 no pasaría de unos 3 cm. El ancho en la línea de tiro lo fijan las **extensiones de tiro** (delantera ⅒ de media cadera, trasera ⅒ + 1,5 cm), que dependen de la cadera, no del tiro. Por eso hay dos ajustes:
+
+1. `crotchEase` ("Holgura de tiro"), en mm, se suma al largo de tiro antes de trazar. Por defecto **25 mm**: 21,5 → 24 cm en la 48, el extremo bajo del rango Feller–Aldrich (24–28 cm; es lo mínimo que lo alcanza). Opciones: 0, 1, 2, 2,5 (defecto), 3 y 4 cm (hasta 25,5 cm en la 48).
+2. `crotchExtensionEase` suma 30 mm a las dos extensiones (la delantera y la trasera). Es el valor mínimo en pasos de 0,5 cm que da ≥ 6 cm de holgura en todas las tallas con el tiro por defecto (con 25 mm la talla 40 se queda en 5,6 cm). El bloque lo aplica siempre; no es opción de la interfaz.
+
+Holgura de muslo (cm) por talla, con el contorno de muslo de la tabla:
+
+| Talla | 40 | 42 | 44 | 46 | 48 | 50 | 52 | 54 |
+|---|---|---|---|---|---|---|---|---|
+| Muslo (tabla) | 49,1 | 50,9 | 52,7 | 54,5 | 56,3 | 58,1 | 59,9 | 61,7 |
+| Tiro de la tabla | 19,5 | 20,0 | 20,5 | 21,0 | 21,5 | 22,0 | 22,5 | 23,0 |
+| Antes (tabla, sin ajustes) | 1,0 | 1,8 | 2,5 | 3,2 | 3,9 | 4,5 | 5,2 | 5,8 |
+| Solo tiro +2,5 cm | 2,0 | 2,7 | 3,3 | 4,0 | 4,6 | 5,2 | 5,8 | 6,4 |
+| **Después (tiro +2,5 y extensiones +3)** | **6,2** | **6,8** | **7,4** | **8,0** | **8,5** | **9,0** | **9,6** | **10,1** |
+
+Mínimo 6,2 cm (talla 40), máximo 10,1 cm (talla 54). Con `crotchEase` y `crotchExtensionEase` a 0 el trazo es idéntico al anterior (prueba en `menTrousers.test.ts`); las costuras siguen igualadas (entrepierna trasera = delantera − 0,5 cm, costados iguales).

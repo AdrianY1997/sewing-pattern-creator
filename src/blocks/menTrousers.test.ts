@@ -191,7 +191,46 @@ describe('registry entry', () => {
     expect(block.label).toBe('Pantalón base hombre')
     expect(block.defaultSize).toBe('48')
     expect(pieceCut(block, 'back')).toEqual({ count: 2, material: 'Tela' })
-    expect(draftBlock(block, '48').points.A30.x).toBeCloseTo(207.98, 1)
+    expect(draftBlock(block, '48').points.A3.y).toBe(240)
     expect(() => draftBlock(block, '10')).toThrow(/not in "es-men-easd"/)
+  })
+})
+
+describe('thigh ease (docs/blocks/men-trousers.md §6.4)', () => {
+  const block = getBlock('men-trousers')
+  const ease = (d: ReturnType<typeof draftMenTrousers>, size: MenSize) => {
+    const r = measureMenTrousers(d)
+    return (
+      r.front.crotchLineWidth + r.back.crotchLineWidth - getMeasurements('es-men-easd', size).thigh
+    )
+  }
+
+  it('declares the "Holgura de tiro" option with a 2.5 cm default', () => {
+    const opt = block.options.find((o) => o.key === 'crotchEase')
+    expect(opt?.label).toBe('Holgura de tiro')
+    expect(opt?.choices.map((c) => c.value)).toEqual(['0', '10', '20', '25', '30', '40'])
+    expect(opt?.default).toBe('25')
+  })
+
+  it.each(SIZES)('size %s: at least 6 cm of thigh ease with the block defaults', (size) => {
+    const d = draftBlock(block, size)
+    expect(ease(d, size)).toBeGreaterThanOrEqual(60)
+    expect(d.points.A3.y - getMeasurements('es-men-easd', size).crotchDepth).toBe(25)
+    const r = measureMenTrousers(d)
+    expect(r.front.inseam - r.back.inseam).toBeCloseTo(E.backInseamEase, 6)
+    expect(Math.abs(r.front.outseam - r.back.outseam)).toBeLessThan(1)
+  })
+
+  it('crotch depth at size 48 is within the Feller–Aldrich range', () => {
+    const y = draftBlock(block, '48').points.A3.y
+    expect(y).toBeGreaterThanOrEqual(240)
+    expect(y).toBeLessThanOrEqual(280)
+  })
+
+  it('both eases at 0 reproduce the table draft exactly', () => {
+    const plain = draftMenTrousers(m48)
+    expect(draftMenTrousers(m48, { crotchEase: 0, crotchExtensionEase: 0 })).toEqual(plain)
+    expect(plain.points.A3.y).toBe(m48.crotchDepth)
+    expect(plain.points.A30.x).toBeCloseTo(207.98, 1)
   })
 })

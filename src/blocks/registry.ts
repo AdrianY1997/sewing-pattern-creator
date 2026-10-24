@@ -13,7 +13,7 @@ import {
 } from '../data'
 import { draftMenBodice } from './menBodice'
 import { MEN_SLEEVE_DEFAULTS, draftMenSleeve } from './menSleeve'
-import { draftMenTrousers } from './menTrousers'
+import { MEN_TROUSERS_BLOCK_DEFAULTS, draftMenTrousers } from './menTrousers'
 import { draftWomenTrousers } from './womenTrousers'
 import { draftWomenBodice } from './womenBodice'
 import { draftWomenSkirt } from './womenSkirt'
@@ -237,10 +237,28 @@ export const MEN_TROUSERS_BLOCK: BlockDef<'es-men-easd'> = {
   sex: 'male',
   system: 'es-men-easd',
   defaultSize: '48',
-  options: [],
+  options: [
+    {
+      key: 'crotchEase',
+      label: 'Holgura de tiro',
+      choices: [
+        { value: '0', label: '0 cm (tabla)' },
+        { value: '10', label: '1 cm' },
+        { value: '20', label: '2 cm' },
+        { value: '25', label: '2,5 cm (recomendada)' },
+        { value: '30', label: '3 cm' },
+        { value: '40', label: '4 cm' },
+      ],
+      default: String(MEN_TROUSERS_BLOCK_DEFAULTS.crotchEase),
+    },
+  ],
   views: TROUSER_VIEWS,
   cut: TROUSER_CUT,
-  draft: (m) => draftMenTrousers(m),
+  draft: (m, o) =>
+    draftMenTrousers(m, {
+      crotchEase: Number(o.crotchEase) || 0,
+      crotchExtensionEase: MEN_TROUSERS_BLOCK_DEFAULTS.crotchExtensionEase,
+    }),
 }
 
 export const BLOCKS: readonly AnyBlockDef[] = [

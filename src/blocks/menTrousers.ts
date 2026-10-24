@@ -65,6 +65,13 @@ export interface MenTrousersOptions {
   readonly hipShift: number
   /** Back inseam shorter than the front, stretched when sewing (Feller: 0.5 cm). */
   readonly backInseamEase: number
+  /** Crotch-depth ease added to the table's largo de tiro before drafting (0 = table value). */
+  readonly crotchEase: number
+  /**
+   * Extra crotch-extension width (mm) added to BOTH the front extension (A3→A10) and the back
+   * extension (A10→A27). This is what actually controls the thigh ease: see docs §6.4.
+   */
+  readonly crotchExtensionEase: number
 }
 
 export const MEN_TROUSERS_DEFAULTS: MenTrousersOptions = {
@@ -72,7 +79,20 @@ export const MEN_TROUSERS_DEFAULTS: MenTrousersOptions = {
   hipEase: 40,
   hipShift: 20,
   backInseamEase: 5,
+  crotchEase: 0,
+  crotchExtensionEase: 0,
 }
+
+/**
+ * Values the block (registry) applies on top of MEN_TROUSERS_DEFAULTS: the draft function itself
+ * defaults to the plain table draft (both 0). See docs/blocks/men-trousers.md §6.4.
+ */
+export const MEN_TROUSERS_BLOCK_DEFAULTS = {
+  /** Crotch-depth ease: 21.5 + 2.5 = 24 cm at size 48 (lower end of the Feller–Aldrich range). */
+  crotchEase: 25,
+  /** Crotch-extension ease (front and back): the smallest 0.5 cm step giving >= 6 cm of thigh ease. */
+  crotchExtensionEase: 30,
+} as const
 
 /** Fixed construction distances of the method (mm). */
 export const MEN_TROUSERS_CONSTANTS = {
@@ -152,13 +172,13 @@ export function draftMenTrousers(
 
   // ---- 1. Lengths from the waist: hip, crotch (largo de tiro), knee and hem ----
   const hipY = m.hipDepth
-  const crotchY = m.crotchDepth
+  const crotchY = m.crotchDepth + o.crotchEase
   const kneeY = m.kneeLength
   const hemY = m.trouserLength
 
   // ---- 2. Front widths: hip quarter (−2 cm to the back) and crotch extension ----
   const frontHip = quarterHip - o.hipShift + o.hipEase / 4
-  const frontExt = halfHip / 10
+  const frontExt = halfHip / 10 + o.crotchExtensionEase
   const half = (frontHip + frontExt) / 2 // crease halfway between side and crotch point
   const cfX = -half + frontHip
   P('A0', vec(0, 0)) // crease on the waist line
@@ -197,7 +217,10 @@ export function draftMenTrousers(
   // ---- 5. Back knee and hem: 2 cm wider than the front at each side ----
   const A25 = P('A25', vec(A18.x - C.widthAdjust, kneeY))
   const A26 = P('A26', vec(A16.x - C.widthAdjust, hemY))
-  const A27 = P('A27', vec(A10.x + halfHip / 10 + C.backExtensionAdd, crotchY))
+  const A27 = P(
+    'A27',
+    vec(A10.x + halfHip / 10 + o.crotchExtensionEase + C.backExtensionAdd, crotchY),
+  )
   const A28 = P('A28', vec(A19.x + C.widthAdjust, kneeY))
   const A29 = P('A29', vec(A17.x + C.widthAdjust, hemY))
 
