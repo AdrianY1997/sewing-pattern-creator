@@ -363,6 +363,9 @@ export function draftMenTrousers(
         notch('back.notch.kneeOut', A25, 2, 'kneeOut'),
         notch('back.notch.kneeIn', A28, 2, 'kneeIn'),
       ],
+      darts: [
+        { id: 'back.dart', apex: 'A33', legs: ['back.dart.left', 'back.dart.right'], type: 'edge' },
+      ],
     },
   )
 

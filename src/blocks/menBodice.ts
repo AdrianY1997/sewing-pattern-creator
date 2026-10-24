@@ -409,6 +409,8 @@ export function draftMenBodice(
   b.role('armhole', ...S_.back.armhole, ...S_.front.armhole)
   b.role('side', ...S_.back.side, ...S_.front.side)
   b.role('hem', 'back.hem', 'front.hem')
+  // Yoke lines: style lines that become seams when the piece is split along them (splitPiece).
+  b.role('seam', 'back.yoke', 'front.yoke')
 
   return b.build()
 }

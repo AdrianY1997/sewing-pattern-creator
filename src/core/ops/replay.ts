@@ -3,18 +3,16 @@
  * applied (missing piece, segment or point; invalid parameters) is skipped and reported as an
  * issue, and the remaining operations still run. `replay` never throws.
  */
-import { stripMeta, type Draft, type DraftSegment, type OutlineRef, type PieceMark } from '../draft'
-import { mapSegment, segEnd, segmentBBox, segmentLength, unionBBox } from '../path'
 import {
-  add,
-  degToRad,
-  distance,
-  midpoint,
-  rotate,
-  scale,
-  signedDistanceToLine,
-  type Vec,
-} from '../vec'
+  stripMeta,
+  type Dart,
+  type Draft,
+  type DraftSegment,
+  type OutlineRef,
+  type PieceMark,
+} from '../draft'
+import { mapSegment, segEnd, segmentBBox, segmentLength, unionBBox } from '../path'
+import { add, degToRad, distance, midpoint, rotate, signedDistanceToLine, type Vec } from '../vec'
 import {
   applyAffine,
   composeAffine,
@@ -23,7 +21,18 @@ import {
   rotationAbout,
   translation,
 } from './affine'
-import { isFoldEdge, outlineNormalAt, pieceLayoutBBox, piecesLayoutBBox, segmentAt } from './marks'
+import { errorMessage, fail } from './errors'
+import { anchorPoint, isFoldEdge, pieceLayoutBBox, piecesLayoutBBox, segmentAt } from './marks'
+import { closeDart, dartToGather, setDartApex, transferDart } from './darts'
+import {
+  convertSegment,
+  moveVertexTo,
+  removeVertex,
+  resolvePoint,
+  setCurveHandles,
+  splitPieceSegment,
+} from './edit'
+import { addInternalLine, splitPiece } from './lines'
 import { KEY_SEP, bboxCentre, pieceWorldBBox, piecesWorldBBox } from './pattern'
 import {
   DEFAULT_ALLOWANCE,
@@ -32,7 +41,6 @@ import {
   type AddButtonOp,
   type AddNotchOp,
   type AddTextMarkOp,
-  type MarkAnchor,
   type RemoveMarkOp,
   type RemoveNotchOp,
   type SetGrainlineOp,
@@ -48,18 +56,9 @@ import {
   type ReplayOptions,
   type ReplayResult,
   type SetPieceMetaOp,
+  type SplitPieceOp,
   type TransformPieceOp,
 } from './types'
-
-/** Raised by an operation that cannot be applied; becomes a ReplayIssue. */
-class OpError extends Error {}
-
-const errorMessage = (e: unknown): string =>
-  e instanceof OpError ? e.message : `Error al aplicar: ${(e as Error)?.message ?? String(e)}`
-
-const fail = (message: string): never => {
-  throw new OpError(message)
-}
 
 /** Suffix of the ids derived by mirroring (cutOnFold halves, mirrored copies). */
 export const MIRROR_SUFFIX = '~m'
@@ -146,6 +145,7 @@ function extractFromDraft(ctx: Ctx, pieceId: string): PatternPiece {
     outline: src.outline,
     internalLines: src.internalLines,
     marks: src.marks,
+    darts: src.darts ?? [],
     points,
     fold: null,
     allowance,
@@ -342,6 +342,20 @@ function cutOnFold(pieces: readonly PatternPiece[], op: CutOnFoldOp): PatternPie
   const points: Record<string, Vec> = { ...piece.points }
   for (const [name, at] of Object.entries(piece.points))
     if (!onAxis(at)) points[suffixed(name)] = m(at)
+  // Darts off the axis get a mirrored twin (legs mirrored above with the internal lines).
+  const darts: Dart[] = [...piece.darts]
+  for (const dt of piece.darts) {
+    if (![...dt.legs, ...(dt.legs2 ?? [])].every((l) => internalLines.includes(suffixed(l))))
+      continue
+    darts.push({
+      ...dt,
+      id: suffixed(dt.id),
+      apex: mirrorName(dt.apex) ?? dt.apex,
+      legs: [suffixed(dt.legs[0]), suffixed(dt.legs[1])],
+      ...(dt.apex2 !== undefined && { apex2: mirrorName(dt.apex2) ?? dt.apex2 }),
+      ...(dt.legs2 && { legs2: [suffixed(dt.legs2[0]), suffixed(dt.legs2[1])] as const }),
+    })
+  }
 
   const allowance: Record<string, number> = {}
   for (const r of half) {
@@ -365,6 +379,7 @@ function cutOnFold(pieces: readonly PatternPiece[], op: CutOnFoldOp): PatternPie
     internalLines,
     marks,
     points,
+    darts,
     allowance,
     // The unfolded piece is whole: one cut, no longer "al doblez".
     onFold: false,
@@ -481,27 +496,6 @@ function removeMark(
   return replacePiece(pieces, { ...piece, marks: piece.marks.filter((m) => m !== mark) })
 }
 
-/** Position of a mark anchor in the piece's local frame. */
-const anchorPoint = (piece: PatternPiece, at: MarkAnchor): Vec => {
-  if (typeof at !== 'object' || at === null) return fail('Falta la posición de la marca')
-  if ('pointName' in at)
-    return (
-      piece.points[at.pointName] ??
-      fail(`El punto "${at.pointName}" no existe en la pieza "${piece.id}"`)
-    )
-  const s =
-    piece.segments[at.segmentId] ??
-    fail(`El segmento "${String(at.segmentId)}" no existe en la pieza "${piece.id}"`)
-  if (!Number.isFinite(at.ratio) || at.ratio < 0 || at.ratio > 1) fail('Posición no válida')
-  if (!Number.isFinite(at.offsetMm)) fail('Separación no válida')
-  const len = at.ratio * segmentLength(stripMeta(s))
-  const { point, tangent } = segmentAt(s, len)
-  // Positive offsets go into the piece (inward normal of an outline edge; left of internal lines).
-  const out = outlineNormalAt(piece, at.segmentId, len)
-  const inward = out ? scale(out, -1) : { x: -tangent.y, y: tangent.x }
-  return add(point, scale(inward, at.offsetMm))
-}
-
 function addTextMark(pieces: readonly PatternPiece[], op: AddTextMarkOp): PatternPiece[] {
   const piece = findPiece(pieces, op.pieceId)
   if (typeof op.text !== 'string' || !op.text.trim()) fail('Falta el texto')
@@ -509,7 +503,7 @@ function addTextMark(pieces: readonly PatternPiece[], op: AddTextMarkOp): Patter
     id: markIdOf(piece, op.id),
     kind: 'text',
     at: anchorPoint(piece, op.at),
-    data: { text: op.text },
+    data: { text: op.text, anchor: op.at },
   }
   return replacePiece(pieces, { ...piece, marks: [...piece.marks, mark] })
 }
@@ -522,7 +516,7 @@ function addButton(pieces: readonly PatternPiece[], op: AddButtonOp): PatternPie
     id: markIdOf(piece, op.id),
     kind: 'button',
     at: anchorPoint(piece, op.at),
-    data: { diameterMm: op.diameterMm },
+    data: { diameterMm: op.diameterMm, anchor: op.at },
   }
   return replacePiece(pieces, { ...piece, marks: [...piece.marks, mark] })
 }
@@ -550,8 +544,13 @@ function setGrainline(
     angleDeg: wrapDeg(op.angleDeg ?? piece.grain.angleDeg),
     offset: op.offset ? { x: op.offset.x, y: op.offset.y } : piece.grain.offset,
   }
-  // Rebuilt from the block's grainline: the setting is absolute, not cumulative.
-  const base = ctx.draft.segments[segId] ?? piece.segments[segId]
+  // Rebuilt from the block's grainline (or the copy made by splitPiece, mark data `base`): the
+  // setting is absolute, not cumulative.
+  const stored = mark.data?.base as { p0?: unknown; p1?: unknown } | undefined
+  const base =
+    stored && finiteVec(stored.p0) && finiteVec(stored.p1)
+      ? ({ kind: 'line', id: segId, p0: stored.p0, p1: stored.p1 } as DraftSegment)
+      : (ctx.draft.segments[segId] ?? piece.segments[segId])
   if (!base || base.kind !== 'line') return fail('El hilo no es una recta')
   const m = midpoint(base.p0, base.p1)
   const theta = degToRad(grain.angleDeg)
@@ -563,6 +562,26 @@ function setGrainline(
     segments: { ...piece.segments, [segId]: seg },
     marks: piece.marks.map((x) => (x === mark ? { ...x, at: add(m, grain.offset) } : x)),
   })
+}
+
+// ---------- geometry editing (F4c) ----------
+
+/** Replace a piece by `edit(piece)`. */
+const editPiece = (
+  pieces: readonly PatternPiece[],
+  pieceId: unknown,
+  edit: (p: PatternPiece) => PatternPiece,
+): PatternPiece[] => replacePiece(pieces, edit(findPiece(pieces, pieceId)))
+
+function splitPieceOp(ctx: Ctx, pieces: readonly PatternPiece[], op: SplitPieceOp): PatternPiece[] {
+  const piece = findPiece(pieces, op.pieceId)
+  const [a, b] = splitPiece(piece, op.lineId, {
+    seamMm: (ctx.options.allowance ?? DEFAULT_ALLOWANCE).seamMm,
+    gapMm: DEFAULT_LAYOUT_GAP,
+  })
+  for (const p of [a, b])
+    if (pieces.some((q) => q.id === p.id)) fail(`Ya existe una pieza "${p.id}"`)
+  return pieces.flatMap((p) => (p.id === piece.id ? [a, b] : [p]))
 }
 
 // ---------- layout ----------
@@ -643,6 +662,37 @@ function applyOne(
       return addTextMark(pieces, op)
     case 'addButton':
       return addButton(pieces, op)
+    case 'closeDart':
+      return editPiece(pieces, op.pieceId, (p) => closeDart(p, op.dartId))
+    case 'transferDart':
+      return editPiece(pieces, op.pieceId, (p) =>
+        transferDart(p, op.dartId, op.toSegmentId, op.atRatio, op.keepPercent),
+      )
+    case 'dartToGather':
+      return editPiece(pieces, op.pieceId, (p) => dartToGather(p, op.dartId, markIdOf(p, op.id)))
+    case 'setDartApex':
+      return editPiece(pieces, op.pieceId, (p) => setDartApex(p, op.dartId, op.shortenMm))
+    case 'movePoint':
+      return editPiece(pieces, op.pieceId, (p) => {
+        if (!finiteVec(op.deltaMm)) fail('Desplazamiento no válido')
+        const v = resolvePoint(p, op.point)
+        return moveVertexTo(p, v, { x: v.x + op.deltaMm.x, y: v.y + op.deltaMm.y })
+      })
+    case 'setCurveHandles':
+      return editPiece(pieces, op.pieceId, (p) => setCurveHandles(p, op))
+    case 'convertSegment':
+      return editPiece(pieces, op.pieceId, (p) => convertSegment(p, op))
+    case 'splitSegment':
+      return editPiece(pieces, op.pieceId, (p) => {
+        if (typeof op.atRatio !== 'number') fail('Posición no válida')
+        return splitPieceSegment(p, String(op.segmentId), op.atRatio).piece
+      })
+    case 'removePoint':
+      return editPiece(pieces, op.pieceId, (p) => removeVertex(p, resolvePoint(p, op.point)))
+    case 'addInternalLine':
+      return editPiece(pieces, op.pieceId, (p) => addInternalLine(p, op))
+    case 'splitPiece':
+      return splitPieceOp(ctx, pieces, op)
     default:
       return fail(`Operación desconocida "${String((op as { type?: unknown }).type)}"`)
   }

@@ -19,7 +19,8 @@ import { seamAllowancePath } from '../seam'
 import { add, distance, perpendicularFoot, projectParam, scale, type Vec } from '../vec'
 import { applyAffine } from './affine'
 import { isCentreLineId, pieceLocalPath, pieceWorldBBox } from './pattern'
-import type { PatternPiece } from './types'
+import { fail } from './errors'
+import type { MarkAnchor, PatternPiece } from './types'
 
 /**
  * True for edges cut on the fold: role 'fold', or a centre front/back edge of a piece labelled
@@ -156,4 +157,25 @@ export const notchOnCutLine = (
   const n = outlineNormalAt(piece, edge.segmentId, edge.len)
   if (!n) return null
   return { at: add(at, scale(n, d)), inward: scale(n, -1), allowance: d }
+}
+
+/** Position of a mark anchor in the piece's local frame. */
+export const anchorPoint = (piece: PatternPiece, at: MarkAnchor): Vec => {
+  if (typeof at !== 'object' || at === null) return fail('Falta la posición de la marca')
+  if ('pointName' in at)
+    return (
+      piece.points[at.pointName] ??
+      fail(`El punto "${at.pointName}" no existe en la pieza "${piece.id}"`)
+    )
+  const s =
+    piece.segments[at.segmentId] ??
+    fail(`El segmento "${String(at.segmentId)}" no existe en la pieza "${piece.id}"`)
+  if (!Number.isFinite(at.ratio) || at.ratio < 0 || at.ratio > 1) fail('Posición no válida')
+  if (!Number.isFinite(at.offsetMm)) fail('Separación no válida')
+  const len = at.ratio * segmentLength(stripMeta(s))
+  const { point, tangent } = segmentAt(s, len)
+  // Positive offsets go into the piece (inward normal of an outline edge; left of internal lines).
+  const out = outlineNormalAt(piece, at.segmentId, len)
+  const inward = out ? scale(out, -1) : { x: -tangent.y, y: tangent.x }
+  return add(point, scale(inward, at.offsetMm))
 }

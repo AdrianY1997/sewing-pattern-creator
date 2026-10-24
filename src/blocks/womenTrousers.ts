@@ -374,6 +374,14 @@ export function draftWomenTrousers(
         notch('front.notch.kneeOut', A17, 1, 'kneeOut'),
         notch('front.notch.kneeIn', A18, 1, 'kneeIn'),
       ],
+      darts: [
+        {
+          id: 'front.dart',
+          apex: 'A16',
+          legs: ['front.dart.left', 'front.dart.right'],
+          type: 'edge',
+        },
+      ],
     },
   )
   b.piece(
@@ -393,6 +401,20 @@ export function draftWomenTrousers(
         notch('back.notch.hip', A24, 1, 'hip'),
         notch('back.notch.kneeOut', A37, 2, 'kneeOut'),
         notch('back.notch.kneeIn', A38, 2, 'kneeIn'),
+      ],
+      darts: [
+        {
+          id: 'back.dart1',
+          apex: 'A32',
+          legs: ['back.dart1.left', 'back.dart1.right'],
+          type: 'edge',
+        },
+        {
+          id: 'back.dart2',
+          apex: 'A36',
+          legs: ['back.dart2.left', 'back.dart2.right'],
+          type: 'edge',
+        },
       ],
     },
   )

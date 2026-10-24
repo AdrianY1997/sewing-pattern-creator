@@ -6,6 +6,7 @@ import {
   path,
   pathBBox,
   piecePath,
+  pointInPolygon,
   polygonSignedArea,
   segmentBBox,
   segmentLength,
@@ -194,6 +195,8 @@ export const polygonCentroid = (pts: readonly Vec[]): Vec => {
   return { x: cx / (6 * a), y: cy / (6 * a) }
 }
 
+export { pointInPolygon }
+
 const segD = (draft: Draft, id: string): string =>
   toSvgPathData(path([stripMeta(draft.segments[id])]))
 
@@ -297,18 +300,6 @@ export function buildDraftRender(draft: Draft): DraftRender {
     points: Object.entries(draft.points).map(([name, at]) => ({ name, at })),
     bbox: segs.length ? unionBBox(segs.map(segmentBBox)) : { minX: 0, minY: 0, maxX: 0, maxY: 0 },
   }
-}
-
-/** Even-odd point-in-polygon test. */
-export const pointInPolygon = (p: Vec, poly: readonly Vec[]): boolean => {
-  let inside = false
-  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
-    const a = poly[i]
-    const b = poly[j]
-    if (a.y > p.y !== b.y > p.y && p.x < ((b.x - a.x) * (p.y - a.y)) / (b.y - a.y) + a.x)
-      inside = !inside
-  }
-  return inside
 }
 
 /** Grid samples per side used to find the free area of overlapping pieces. */

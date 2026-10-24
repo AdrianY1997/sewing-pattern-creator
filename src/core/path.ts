@@ -175,3 +175,32 @@ export const toSvgPathData = (p: Path, digits = 3): string => {
   if (p.closed) parts.push('Z')
   return parts.join(' ')
 }
+
+/** Even-odd point-in-polygon test. */
+export const pointInPolygon = (p: Vec, poly: readonly Vec[]): boolean => {
+  let inside = false
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const a = poly[i]
+    const b = poly[j]
+    if (a.y > p.y !== b.y > p.y && p.x < ((b.x - a.x) * (p.y - a.y)) / (b.y - a.y) + a.x)
+      inside = !inside
+  }
+  return inside
+}
+
+/** Distance from `p` to a polyline (closed when `closed`). */
+export const distanceToPolyline = (p: Vec, pts: readonly Vec[], closed = false): number => {
+  let best = Infinity
+  const n = pts.length
+  if (n === 1) return distance(p, pts[0])
+  for (let i = 0; i < (closed ? n : n - 1); i++) {
+    const a = pts[i]
+    const b = pts[(i + 1) % n]
+    const dx = b.x - a.x
+    const dy = b.y - a.y
+    const l2 = dx * dx + dy * dy
+    const t = l2 < 1e-18 ? 0 : Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / l2))
+    best = Math.min(best, Math.hypot(a.x + t * dx - p.x, a.y + t * dy - p.y))
+  }
+  return best
+}

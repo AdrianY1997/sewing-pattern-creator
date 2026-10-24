@@ -8,7 +8,7 @@
  * carries are user-entered amounts (a translation or a gap in mm, an angle in degrees), so the same
  * list replays on every size.
  */
-import type { DraftSegment, OutlineRef, Draft, PieceMark } from '../draft'
+import type { Dart, DraftSegment, OutlineRef, Draft, PieceMark } from '../draft'
 import type { Vec } from '../vec'
 
 /**
@@ -45,6 +45,8 @@ export interface PatternPiece {
   readonly outline: readonly OutlineRef[]
   readonly internalLines: readonly string[]
   readonly marks: readonly PieceMark[]
+  /** Darts of the piece (legs are internal lines, apexes are point names). */
+  readonly darts: readonly Dart[]
   /** Named construction points lying on the piece (local coordinates). */
   readonly points: Readonly<Record<string, Vec>>
   /** Fold line left by cutOnFold (local coordinates), null when the piece was not unfolded. */
@@ -220,6 +222,134 @@ export interface RemoveMarkOp extends OpBase {
   readonly markId: string
 }
 
+// ---------- geometry editing (F4c) ----------
+
+/**
+ * A vertex of a piece: a point name, or one end of a segment (in the segment's own direction).
+ * Every segment end at that position moves or merges together.
+ */
+export type PointRef = string | { readonly segmentId: string; readonly end: 'start' | 'end' }
+
+/**
+ * Closes an edge dart: the side of the piece without the grainline (the smaller one when that does
+ * not decide) turns about the apex until the legs coincide, cut along the dart's centre line
+ * prolonged past the apex; the angle opens on the opposite edge as a spread bridged by a straight
+ * edge. The edge across the closed dart is trued (made smooth). Internal darts cannot be closed.
+ */
+export interface CloseDartOp extends OpBase {
+  readonly type: 'closeDart'
+  readonly pieceId: string
+  readonly dartId: string
+}
+
+/**
+ * Pivot method: cut from the apex to the point at `atRatio` (arc length) of `toSegmentId`, close the
+ * dart (wholly, or down to `keepPercent` % of its angle to split it) and the angle opens there as a
+ * new dart `${dartId}~t` (`~t2`…) with legs `${newId}.a` / `${newId}.b` and opening `${newId}.open`.
+ */
+export interface TransferDartOp extends OpBase {
+  readonly type: 'transferDart'
+  readonly pieceId: string
+  readonly dartId: string
+  readonly toSegmentId: string
+  readonly atRatio: number
+  /** Share (0–99 %) of the dart angle that stays at the old place. Default 0. */
+  readonly keepPercent?: number
+}
+
+/**
+ * The dart becomes gathers: legs removed, the edge trued across the opening (the dart's width stays
+ * in the edge as fullness) and a gather mark "fruncir" spans the original dart width.
+ */
+export interface DartToGatherOp extends OpBase {
+  readonly type: 'dartToGather'
+  readonly pieceId: string
+  readonly dartId: string
+}
+
+/** Shortens the dart from its apex along its centre line (e.g. 20–30 mm from the bust point). */
+export interface SetDartApexOp extends OpBase {
+  readonly type: 'setDartApex'
+  readonly pieceId: string
+  readonly dartId: string
+  readonly shortenMm: number
+}
+
+/**
+ * Moves a vertex by `deltaMm` (local frame of the piece). Adjacent segments follow; a curve's
+ * control point next to the vertex moves with it, so the tangent direction is kept.
+ */
+export interface MovePointOp extends OpBase {
+  readonly type: 'movePoint'
+  readonly pieceId: string
+  readonly point: PointRef
+  readonly deltaMm: Vec
+}
+
+/**
+ * Control points of a curve: `c1` relative to its start, `c2` relative to its end (mm, local
+ * frame, the segment's own direction). A straight segment becomes a curve.
+ */
+export interface SetCurveHandlesOp extends OpBase {
+  readonly type: 'setCurveHandles'
+  readonly pieceId: string
+  readonly segmentId: string
+  readonly c1?: Vec
+  readonly c2?: Vec
+}
+
+export interface ConvertSegmentOp extends OpBase {
+  readonly type: 'convertSegment'
+  readonly pieceId: string
+  readonly segmentId: string
+  readonly to: 'line' | 'curve'
+}
+
+/** "Añadir punto": splits a segment at `atRatio` of its arc length into `${id}~1` and `${id}~2`. */
+export interface SplitSegmentOp extends OpBase {
+  readonly type: 'splitSegment'
+  readonly pieceId: string
+  readonly segmentId: string
+  readonly atRatio: number
+}
+
+/**
+ * "Eliminar punto": merges the two outline segments that meet at the vertex (a curve is refitted
+ * when either was curved). `${id}~1` + `${id}~2` merge back into `${id}`, other pairs into
+ * `${first}~join`.
+ */
+export interface RemovePointOp extends OpBase {
+  readonly type: 'removePoint'
+  readonly pieceId: string
+  readonly point: PointRef
+}
+
+/** End of an internal line: a point name, a place on a segment, or a point of the piece (local mm). */
+export type LineAnchor =
+  string | { readonly segmentId: string; readonly atRatio: number } | { readonly piecePointMm: Vec }
+
+/** Internal line (id = operation id, role 'seam'): a style line, a yoke or a princess line. */
+export interface AddInternalLineOp extends OpBase {
+  readonly type: 'addInternalLine'
+  readonly pieceId: string
+  readonly from: LineAnchor
+  readonly to: LineAnchor
+  readonly kind: 'line' | 'curve'
+  /** Curves: control points relative to `from` (c1) and to `to` (c2), mm. */
+  readonly handles?: { readonly c1: Vec; readonly c2: Vec }
+}
+
+/**
+ * Cuts a piece along an internal line that runs from outline to outline: two pieces `${id}~a` and
+ * `${id}~b` with the marks, darts, allowances and grainline of their side; the cut becomes an edge
+ * of both (role 'seam', default seam allowance).
+ */
+export interface SplitPieceOp extends OpBase {
+  readonly type: 'splitPiece'
+  readonly pieceId: string
+  readonly lineId: string
+}
+
 export type Operation =
   | ExtractPieceOp
   | ExtractAllOp
@@ -237,6 +367,17 @@ export type Operation =
   | AddTextMarkOp
   | AddButtonOp
   | RemoveMarkOp
+  | CloseDartOp
+  | TransferDartOp
+  | DartToGatherOp
+  | SetDartApexOp
+  | MovePointOp
+  | SetCurveHandlesOp
+  | ConvertSegmentOp
+  | SplitSegmentOp
+  | RemovePointOp
+  | AddInternalLineOp
+  | SplitPieceOp
 
 export type OperationType = Operation['type']
 

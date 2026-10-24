@@ -33,6 +33,7 @@ export type SegmentRole =
   | 'cap'
   | 'underarm'
   | 'dart'
+  | 'seam'
 
 export const SEGMENT_ROLES: readonly SegmentRole[] = [
   'hem',
@@ -50,6 +51,7 @@ export const SEGMENT_ROLES: readonly SegmentRole[] = [
   'cap',
   'underarm',
   'dart',
+  'seam',
 ]
 
 /**
@@ -76,6 +78,30 @@ export interface PieceMark {
   readonly data?: Readonly<Record<string, unknown>>
 }
 
+/**
+ * 'edge': the dart opens on the outline (its legs end on it), like a side bust dart or a skirt
+ * waist dart. 'internal': a fish/diamond dart wholly inside the piece (it cannot be closed or
+ * transferred).
+ */
+export type DartType = 'edge' | 'internal'
+
+/**
+ * A dart of a piece. The legs are internal lines that run between the apex and the outline (edge
+ * darts) or the widest point (internal darts). Internal darts have a second apex with its own legs.
+ */
+export interface Dart {
+  readonly id: string
+  /** Name of the apex point (the tip of the dart). */
+  readonly apex: string
+  /** Segment ids of the two legs (internal lines). */
+  readonly legs: readonly [string, string]
+  readonly type: DartType
+  /** Internal darts: the second (lower) apex… */
+  readonly apex2?: string
+  /** …and its two legs. */
+  readonly legs2?: readonly [string, string]
+}
+
 export interface Piece {
   readonly id: string
   readonly name: string
@@ -84,6 +110,8 @@ export interface Piece {
   /** Segment ids of internal lines (grainline, dart legs, guide lines). */
   readonly internalLines: readonly string[]
   readonly marks: readonly PieceMark[]
+  /** Darts of the piece (their legs are internal lines). */
+  readonly darts: readonly Dart[]
 }
 
 export interface Draft {
@@ -214,11 +242,22 @@ export class DraftBuilder {
     id: string,
     name: string,
     outline: readonly (string | OutlineRef)[],
-    options: { internalLines?: readonly string[]; marks?: readonly PieceMark[] } = {},
+    options: {
+      internalLines?: readonly string[]
+      marks?: readonly PieceMark[]
+      darts?: readonly Dart[]
+    } = {},
   ): Piece {
     if (this.pieces.has(id)) throw new Error(`DraftBuilder: duplicate piece "${id}"`)
     if (outline.length === 0) throw new Error(`DraftBuilder: piece "${id}" has an empty outline`)
     for (const l of options.internalLines ?? []) this.seg(l)
+    for (const d of options.darts ?? []) {
+      for (const leg of [...d.legs, ...(d.legs2 ?? [])])
+        if (!options.internalLines?.includes(leg))
+          throw new Error(`DraftBuilder: dart "${d.id}" leg "${leg}" is not an internal line`)
+      this.p(d.apex)
+      if (d.apex2 !== undefined) this.p(d.apex2)
+    }
     const refs = orientOutline(
       outline.map((r) => (typeof r === 'string' ? { segment: r, reversed: null } : r)),
       (sid) => this.seg(sid),
@@ -230,6 +269,7 @@ export class DraftBuilder {
       outline: refs,
       internalLines: [...(options.internalLines ?? [])],
       marks: [...(options.marks ?? [])],
+      darts: [...(options.darts ?? [])],
     }
     this.pieces.set(id, piece)
     return piece

@@ -22,6 +22,28 @@ const isAnchor = (v: unknown): boolean => {
   return isStr(a.segmentId) && isNum(a.ratio) && isNum(a.offsetMm)
 }
 
+const isRatio = (v: unknown): boolean => isNum(v) && v >= 0 && v <= 1
+
+/** A vertex: a point name or `{ segmentId, end }`. */
+const isPointRef = (v: unknown): boolean =>
+  isStr(v) ||
+  (typeof v === 'object' &&
+    v !== null &&
+    isStr((v as Rec).segmentId) &&
+    ((v as Rec).end === 'start' || (v as Rec).end === 'end'))
+
+/** End of an internal line: point name, `{ segmentId, atRatio }` or `{ piecePointMm }`. */
+const isLineAnchor = (v: unknown): boolean => {
+  if (isStr(v)) return true
+  if (typeof v !== 'object' || v === null) return false
+  const a = v as Rec
+  if ('piecePointMm' in a) return isVec(a.piecePointMm)
+  return isStr(a.segmentId) && isRatio(a.atRatio)
+}
+
+const isHandles = (v: unknown): boolean =>
+  typeof v === 'object' && v !== null && isVec((v as Rec).c1) && isVec((v as Rec).c2)
+
 const isAxis = (v: unknown): boolean =>
   v === 'vertical' ||
   v === 'horizontal' ||
@@ -63,6 +85,34 @@ const VALIDATORS: { readonly [T in OperationType]: (o: Rec) => boolean } = {
   addTextMark: (o) => isStr(o.pieceId) && typeof o.text === 'string' && isAnchor(o.at),
   addButton: (o) => isStr(o.pieceId) && isAnchor(o.at) && isNum(o.diameterMm),
   removeMark: (o) => isStr(o.pieceId) && isStr(o.markId),
+  closeDart: (o) => isStr(o.pieceId) && isStr(o.dartId),
+  transferDart: (o) =>
+    isStr(o.pieceId) &&
+    isStr(o.dartId) &&
+    isStr(o.toSegmentId) &&
+    isRatio(o.atRatio) &&
+    opt(o.keepPercent, (v) => isNum(v) && v >= 0 && v < 100),
+  dartToGather: (o) => isStr(o.pieceId) && isStr(o.dartId),
+  setDartApex: (o) => isStr(o.pieceId) && isStr(o.dartId) && isNum(o.shortenMm) && o.shortenMm > 0,
+  movePoint: (o) => isStr(o.pieceId) && isPointRef(o.point) && isVec(o.deltaMm),
+  setCurveHandles: (o) =>
+    isStr(o.pieceId) &&
+    isStr(o.segmentId) &&
+    opt(o.c1, isVec) &&
+    opt(o.c2, isVec) &&
+    (o.c1 !== undefined || o.c2 !== undefined),
+  convertSegment: (o) =>
+    isStr(o.pieceId) && isStr(o.segmentId) && (o.to === 'line' || o.to === 'curve'),
+  splitSegment: (o) =>
+    isStr(o.pieceId) && isStr(o.segmentId) && isNum(o.atRatio) && o.atRatio > 0 && o.atRatio < 1,
+  removePoint: (o) => isStr(o.pieceId) && isPointRef(o.point),
+  addInternalLine: (o) =>
+    isStr(o.pieceId) &&
+    isLineAnchor(o.from) &&
+    isLineAnchor(o.to) &&
+    (o.kind === 'line' || o.kind === 'curve') &&
+    opt(o.handles, isHandles),
+  splitPiece: (o) => isStr(o.pieceId) && isStr(o.lineId),
 }
 
 /** Why a stored value is not a well-formed operation, or null when it is. */

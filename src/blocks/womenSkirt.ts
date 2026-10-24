@@ -275,6 +275,9 @@ export function draftWomenSkirt(
     {
       internalLines: ['back.dart.left', 'back.dart.right', 'back.grain'],
       marks: [grainMark('back', 'back.grain', backGrain), hipNotch('back')],
+      darts: [
+        { id: 'back.dart', apex: 'A23', legs: ['back.dart.left', 'back.dart.right'], type: 'edge' },
+      ],
     },
   )
   b.piece(
@@ -291,6 +294,14 @@ export function draftWomenSkirt(
     {
       internalLines: ['front.dart.left', 'front.dart.right', 'front.grain'],
       marks: [grainMark('front', 'front.grain', frontGrain), hipNotch('front')],
+      darts: [
+        {
+          id: 'front.dart',
+          apex: 'A29',
+          legs: ['front.dart.left', 'front.dart.right'],
+          type: 'edge',
+        },
+      ],
     },
   )
 

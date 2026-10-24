@@ -406,6 +406,24 @@ export function draftWomenBodice(
       'back.grain',
     ],
     marks: [grainMark('back', 'back.grain', backGrain)],
+    // Hip length: a diamond (fish) dart through the waist; waist length: it opens on the waist.
+    darts: [
+      hip
+        ? {
+            id: 'back.waistDart',
+            apex: 'A44',
+            legs: ['back.dart.left', 'back.dart.right'],
+            type: 'internal',
+            apex2: 'A45',
+            legs2: ['back.dart.leftLow', 'back.dart.rightLow'],
+          }
+        : {
+            id: 'back.waistDart',
+            apex: 'A44',
+            legs: ['back.dart.left', 'back.dart.right'],
+            type: 'edge',
+          },
+    ],
   })
 
   const frontOutline = [
@@ -431,6 +449,30 @@ export function draftWomenBodice(
     marks: [
       grainMark('front', 'front.grain', frontGrain),
       { id: 'front.bustPoint', kind: 'bustPoint', at: A34 },
+    ],
+    darts: [
+      // Side bust dart: apex on the bust point, opening (with its cap) on the side seam.
+      {
+        id: 'front.bustDart',
+        apex: 'A34',
+        legs: ['front.bustDart.upper', 'front.bustDart.lower'],
+        type: 'edge',
+      },
+      hip
+        ? {
+            id: 'front.waistDart',
+            apex: 'A50',
+            legs: ['front.waistDart.left', 'front.waistDart.right'],
+            type: 'internal',
+            apex2: 'A51',
+            legs2: ['front.waistDart.leftLow', 'front.waistDart.rightLow'],
+          }
+        : {
+            id: 'front.waistDart',
+            apex: 'A50',
+            legs: ['front.waistDart.left', 'front.waistDart.right'],
+            type: 'edge',
+          },
     ],
   })
 

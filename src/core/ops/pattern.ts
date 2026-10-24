@@ -52,7 +52,7 @@ export const bboxCentre = (b: BBox): Vec => ({ x: (b.minX + b.maxX) / 2, y: (b.m
 
 /** Centre-line segments (centre back / centre front): ids like `back.cb`, `front.cfHip`. */
 export const isCentreLineId = (segmentId: string): boolean =>
-  /(^|\.)c[bf]([A-Z.]|$)/.test(segmentId)
+  /(^|\.)c[bf]([A-Z.~]|$)/.test(segmentId)
 
 /**
  * Grading anchor of a piece (world coordinates): the point where the sizes of a piece are aligned
@@ -118,6 +118,14 @@ export function patternToWorldDraft(pieces: readonly PatternPiece[]): Draft {
       outline: pc.outline.map((r) => ({ segment: k(r.segment), reversed: r.reversed })),
       internalLines: internal,
       marks,
+      darts: pc.darts.map((d) => ({
+        ...d,
+        id: k(d.id),
+        apex: k(d.apex),
+        legs: [k(d.legs[0]), k(d.legs[1])] as const,
+        ...(d.apex2 !== undefined && { apex2: k(d.apex2) }),
+        ...(d.legs2 && { legs2: [k(d.legs2[0]), k(d.legs2[1])] as const }),
+      })),
     })
   }
   return { version: 1, points, segments, pieces: out }

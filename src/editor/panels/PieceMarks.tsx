@@ -31,6 +31,7 @@ export const ROLE_LABEL: Readonly<Record<SegmentRole, string>> = {
   cap: 'Copa',
   underarm: 'Costura de manga',
   dart: 'Pinza',
+  seam: 'Costura',
 }
 
 const cm = (mm: number) => `${(mm / 10).toFixed(1)} cm`
