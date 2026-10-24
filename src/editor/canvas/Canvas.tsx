@@ -1,5 +1,6 @@
 import {
   useCallback,
+  useEffect,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -189,26 +190,33 @@ export function Canvas() {
     s.setView(centreOn(centre, size, s.pxPerMm))
   }
 
-  // Snap targets: named points plus the segments of the visible layers (without the piece being
-  // moved, so it snaps to the others).
+  // Snap targets: named points plus the segments of the visible layers. Built once per display and
+  // layers; the piece being moved is left out at query time (`exclude`), so it snaps to the others
+  // without rebuilding the intersections.
   const excluded = drag?.kind === 'move' ? drag.pieceId : null
   const snapIndex = useMemo(() => {
     const r = display.render
-    const prefix = excluded ? `${excluded}/` : null
+    const visible = r.segments.filter((sg) => layers[sg.layer])
     return buildSnapIndex(
-      prefix ? r.points.filter((p) => !p.name.startsWith(prefix)) : r.points,
-      r.segments
-        .filter((sg) => layers[sg.layer] && (excluded === null || sg.pieceId !== excluded))
-        .map((sg) => stripMeta(display.draft.segments[sg.id])),
+      r.points.map((p) => {
+        const i = p.name.indexOf('/')
+        return i > 0 ? { ...p, owner: p.name.slice(0, i) } : p
+      }),
+      visible.map((sg) => stripMeta(display.draft.segments[sg.id])),
+      new Map(visible.flatMap((sg) => (sg.pieceId ? [[sg.id, sg.pieceId] as const] : []))),
     )
-  }, [display, layers, excluded])
+  }, [display, layers])
 
   const tracking = cursor !== null && !panning
   const notchTool = mode === 'pieces' && tool === 'notch' && !spaceDown
   const snapped = drag
     ? drag.snap
     : tracking && snapEnabled
-      ? snap(snapIndex, cursor, { scale: view.scale, grid: showGrid && !notchTool })
+      ? snap(snapIndex, cursor, {
+          scale: view.scale,
+          grid: showGrid && !notchTool,
+          exclude: excluded,
+        })
       : null
   // "Añadir piquete": the outline point under the (snapped) cursor.
   const notchAt =
@@ -331,7 +339,11 @@ export function Canvas() {
       }
       const s = useEditorStore.getState()
       const hit = s.snapEnabled
-        ? snap(snapIndex, target, { scale: s.view.scale, grid: s.showGrid })
+        ? snap(snapIndex, target, {
+            scale: s.view.scale,
+            grid: s.showGrid,
+            exclude: excluded,
+          })
         : null
       const at = hit?.at ?? target
       const translate = { x: at.x - drag.anchor.x, y: at.y - drag.anchor.y }
@@ -368,6 +380,26 @@ export function Canvas() {
     setDrag(null)
   }
 
+  /** Abort the drag (pointercancel, lost capture, Escape): nothing is committed, the preview goes. */
+  const cancelDrag = useCallback((pointerId?: number) => {
+    setDrag((d) => {
+      if (!d || (pointerId !== undefined && d.pointerId !== pointerId)) return d
+      const el = viewportRef.current
+      if (el?.hasPointerCapture(d.pointerId)) el.releasePointerCapture(d.pointerId)
+      return null
+    })
+  }, [])
+
+  const dragging = drag !== null
+  useEffect(() => {
+    if (!dragging) return
+    const onKey = (ev: KeyboardEvent) => {
+      if (ev.key === 'Escape') cancelDrag()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [dragging, cancelDrag])
+
   const onContextMenu = (ev: MouseEvent<HTMLDivElement>) => {
     ev.preventDefault()
     const el = viewportRef.current
@@ -402,6 +434,8 @@ export function Canvas() {
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
+        onPointerCancel={(ev) => cancelDrag(ev.pointerId)}
+        onLostPointerCapture={(ev) => cancelDrag(ev.pointerId)}
         onPointerLeave={handlers.onPointerLeave}
         onContextMenu={onContextMenu}
       >

@@ -106,3 +106,51 @@ describe('snap engine', () => {
     expect(pointsAt(points, vec(205, -200), 2)).toEqual([]) // 5 mm = 10 px > 8 px
   })
 })
+
+describe('exclude by owner (piece being moved)', () => {
+  // Two pieces crossing: p1 owns h (horizontal) and p2 owns v (vertical), crossing at (50,0).
+  const h = line('h', vec(0, 0), vec(100, 0))
+  const v = line('v', vec(50, -40), vec(50, 40))
+  const owners = new Map([
+    ['h', 'p1'],
+    ['v', 'p2'],
+  ])
+  const idx = buildSnapIndex(
+    [
+      { name: 'p1/A', at: vec(0, 0), owner: 'p1' },
+      { name: 'p2/B', at: vec(50, 40), owner: 'p2' },
+    ],
+    [h, v],
+    owners,
+  )
+  const q = (x: number, y: number, exclude?: string | null) =>
+    snap(idx, vec(x, y), { scale: 1, grid: false, exclude })
+
+  it('without exclude all candidates are available', () => {
+    expect(q(50, 0)?.kind).toBe('intersection')
+    expect(q(0, 0)?.kind).toBe('point')
+  })
+
+  it('the excluded piece contributes no points, endpoints, midpoints, curves or intersections', () => {
+    expect(q(0, 0, 'p1')).toBeNull() // p1's point and endpoint
+    expect(q(50, 0, 'p1')?.kind).toBe('midpoint') // crossing gone: only p2's line is left
+    expect(q(50, 0, 'p1')?.segmentId).toBe('v')
+    expect(q(50, 40, 'p2')).toBeNull()
+    expect(q(20, 0, 'p1')).toBeNull() // p1's own line
+    expect(q(20, 0, 'p2')?.kind).toBe('curve')
+  })
+
+  it('keeps coincident endpoints of other owners (no cross-owner dedupe)', () => {
+    const a1 = line('a1', vec(0, 0), vec(10, 0))
+    const a2 = line('a2', vec(0, 0), vec(0, 10))
+    const i2 = buildSnapIndex(
+      [],
+      [a1, a2],
+      new Map([
+        ['a1', 'x'],
+        ['a2', 'y'],
+      ]),
+    )
+    expect(snap(i2, vec(0, 0), { scale: 1, grid: false, exclude: 'x' })?.segmentId).toBe('a2')
+  })
+})

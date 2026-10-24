@@ -23,7 +23,7 @@ import {
   rotationAbout,
   translation,
 } from './affine'
-import { isFoldEdge, outlineNormalAt, segmentAt } from './marks'
+import { isFoldEdge, outlineNormalAt, pieceLayoutBBox, piecesLayoutBBox, segmentAt } from './marks'
 import { KEY_SEP, bboxCentre, pieceWorldBBox, piecesWorldBBox } from './pattern'
 import {
   DEFAULT_ALLOWANCE,
@@ -53,6 +53,9 @@ import {
 
 /** Raised by an operation that cannot be applied; becomes a ReplayIssue. */
 class OpError extends Error {}
+
+const errorMessage = (e: unknown): string =>
+  e instanceof OpError ? e.message : `Error al aplicar: ${(e as Error)?.message ?? String(e)}`
 
 const fail = (message: string): never => {
   throw new OpError(message)
@@ -85,11 +88,14 @@ const withTransform = (p: PatternPiece, outer: Pattern['pieces'][number]['transf
   transform: composeAffine(outer, p.transform),
 })
 
-/** Translation that puts `piece` to the right of `others` (top-aligned), `gap` mm apart. */
+/**
+ * Puts `piece` to the right of `others` (top-aligned), `gap` mm apart. Boxes are those of the cut
+ * lines when the pieces have seam allowance, so the gap is between cut lines.
+ */
 const placeRightOf = (piece: PatternPiece, others: readonly PatternPiece[], gap: number) => {
-  const all = piecesWorldBBox(others)
+  const all = piecesLayoutBBox(others)
   if (!all) return piece
-  const b = pieceWorldBBox(piece)
+  const b = pieceLayoutBBox(piece)
   return withTransform(piece, translation({ x: all.maxX + gap - b.minX, y: all.minY - b.minY }))
 }
 
@@ -115,18 +121,27 @@ function extractFromDraft(ctx: Ctx, pieceId: string): PatternPiece {
     if (named.has(name) || ends.some((e) => distance(e, at) < 1e-3)) points[name] = at
   const defaults = ctx.options.pieceDefaults?.(pieceId) ?? {}
   const { seamMm, hemMm } = ctx.options.allowance ?? DEFAULT_ALLOWANCE
+  // A half piece (the block marks it so) with a centre front / centre back edge is cut on the fold.
+  const onFold =
+    defaults.halfPiece === true &&
+    src.outline.some((r) => {
+      const role = segments[r.segment].role
+      return role === 'centerFront' || role === 'centerBack'
+    })
   const allowance: Record<string, number> = {}
   for (const r of src.outline) {
     const role = segments[r.segment].role
-    allowance[r.segment] = role === 'fold' ? 0 : role === 'hem' ? hemMm : seamMm
+    const foldEdge =
+      role === 'fold' || (onFold && (role === 'centerFront' || role === 'centerBack'))
+    allowance[r.segment] = foldEdge ? 0 : role === 'hem' ? hemMm : seamMm
   }
   return structuredClone({
     id: pieceId,
     sourcePieceId: pieceId,
     name: src.name,
-    cutCount: defaults.cutCount ?? 1,
+    cutCount: onFold ? 1 : (defaults.cutCount ?? 1),
     fabric: defaults.fabric ?? 'Tela',
-    onFold: false,
+    onFold,
     segments,
     outline: src.outline,
     internalLines: src.internalLines,
@@ -137,6 +152,27 @@ function extractFromDraft(ctx: Ctx, pieceId: string): PatternPiece {
     grain: { angleDeg: 0, offset: { x: 0, y: 0 } },
     transform: IDENTITY,
   })
+}
+
+/**
+ * Extracts every piece of the draft, each in its own try: a piece that fails gives one issue naming
+ * it and the rest are still extracted.
+ */
+function extractAll(
+  ctx: Ctx,
+  pieces: readonly PatternPiece[],
+  issues: ReplayIssue[],
+  opId: string,
+): PatternPiece[] {
+  let acc = [...pieces]
+  for (const p of ctx.draft.pieces) {
+    try {
+      acc = extract(ctx, acc, p.id)
+    } catch (e) {
+      issues.push({ opId, message: `Pieza "${p.id}": ${errorMessage(e)}` })
+    }
+  }
+  return acc
 }
 
 const extract = (ctx: Ctx, pieces: readonly PatternPiece[], pieceId: unknown): PatternPiece[] => {
@@ -330,7 +366,9 @@ function cutOnFold(pieces: readonly PatternPiece[], op: CutOnFoldOp): PatternPie
     marks,
     points,
     allowance,
+    // The unfolded piece is whole: one cut, no longer "al doblez".
     onFold: false,
+    cutCount: 1,
     fold: { from: runStart(run[0]), to: runEnd(run[run.length - 1]) },
   })
 }
@@ -531,16 +569,16 @@ function setGrainline(
 
 /**
  * Shelf layout: pieces sorted by height (tallest first, ties by id) fill rows left to right; a row
- * wraps at LAYOUT_ROW_WIDTH (or the widest piece). Bounding boxes are at least `gap` apart, so the
- * pieces cannot overlap. The layout starts at the top-left of the current arrangement.
+ * wraps at LAYOUT_ROW_WIDTH (or the widest piece). Boxes (of the cut lines when a piece has seam
+ * allowance) are at least `gap` apart, so the pieces cannot overlap. The layout starts at the top-left of the current arrangement.
  */
 function autoLayout(pieces: readonly PatternPiece[], op: AutoLayoutOp): PatternPiece[] {
   const gap = op.gapMm ?? DEFAULT_LAYOUT_GAP
   if (!Number.isFinite(gap) || gap < 0) fail('Separación no válida')
   if (pieces.length === 0) return []
-  const origin = piecesWorldBBox(pieces)
+  const origin = piecesLayoutBBox(pieces)
   if (!origin) return [...pieces]
-  const boxes = new Map(pieces.map((p) => [p.id, pieceWorldBBox(p)]))
+  const boxes = new Map(pieces.map((p) => [p.id, pieceLayoutBBox(p)]))
   const w = (id: string) => boxes.get(id)!.maxX - boxes.get(id)!.minX
   const h = (id: string) => boxes.get(id)!.maxY - boxes.get(id)!.minY
   const order = [...pieces].sort((p, q) => h(q.id) - h(p.id) || (p.id < q.id ? -1 : 1))
@@ -565,15 +603,17 @@ function autoLayout(pieces: readonly PatternPiece[], op: AutoLayoutOp): PatternP
 
 // ---------- replay ----------
 
-function applyOne(ctx: Ctx, pieces: readonly PatternPiece[], op: Operation): PatternPiece[] {
+function applyOne(
+  ctx: Ctx,
+  pieces: readonly PatternPiece[],
+  op: Operation,
+  issues: ReplayIssue[],
+): PatternPiece[] {
   switch (op.type) {
     case 'extractPiece':
       return extract(ctx, pieces, op.pieceId)
     case 'extractAll':
-      return ctx.draft.pieces.reduce<PatternPiece[]>(
-        (acc, p) => extract(ctx, acc, p.id),
-        [...pieces],
-      )
+      return extractAll(ctx, pieces, issues, op.id)
     case 'transformPiece':
       return transformPiece(pieces, op)
     case 'mirrorPiece':
@@ -625,11 +665,9 @@ export function applyOperations(
   ops.forEach((op, i) => {
     try {
       if (typeof op !== 'object' || op === null) fail('Operación no válida')
-      pieces = applyOne(ctx, pieces, op)
+      pieces = applyOne(ctx, pieces, op, issues)
     } catch (e) {
-      const message =
-        e instanceof OpError ? e.message : `Error al aplicar: ${(e as Error)?.message ?? String(e)}`
-      issues.push({ opId: opIdOf(op, i), message })
+      issues.push({ opId: opIdOf(op, i), message: errorMessage(e) })
     }
   })
   return { pattern: { draft: pattern.draft, pieces }, issues }

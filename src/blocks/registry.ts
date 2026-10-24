@@ -57,12 +57,20 @@ export interface BlockDef<S extends MeasurementSystem = MeasurementSystem> {
   readonly views: readonly BlockView[]
   /** Cut info per piece id; pieces not listed default to DEFAULT_CUT. */
   readonly cut?: Readonly<Record<string, PieceCutInfo>>
+  /**
+   * Pieces drafted as a half (the other half is the mirror image across the centre front / centre
+   * back edge): extracted "al doblez" by default. Legs and sleeves are not half pieces.
+   */
+  readonly halfPieces?: readonly string[]
   /** Pure draft function: measurements in mm (getMeasurements of `system`) and option values. */
   readonly draft: (measurements: Readonly<Record<KeyOf<S>, number>>, options: BlockOptions) => Draft
 }
 
 /** A block of any measurement system. */
 export type AnyBlockDef = { [S in MeasurementSystem]: BlockDef<S> }[MeasurementSystem]
+
+/** Front and back of a block drafted as halves (centre front / centre back on the fold). */
+const FRONT_BACK_HALVES: readonly string[] = ['front', 'back']
 
 export const DEFAULT_CUT: PieceCutInfo = { count: 1, material: 'Tela' }
 
@@ -88,6 +96,7 @@ export const WOMEN_BODICE_BLOCK: BlockDef<'co-women-industrial'> = {
     { id: 'front', label: 'Frente', pieceId: 'front' },
     { id: 'back', label: 'Espalda', pieceId: 'back' },
   ],
+  halfPieces: FRONT_BACK_HALVES,
   draft: (m, o) => draftWomenBodice(m, { length: o.length === 'waist' ? 'waist' : 'hip' }),
 }
 
@@ -144,6 +153,7 @@ export const WOMEN_SKIRT_BLOCK: BlockDef<'co-women-industrial'> = {
     { id: 'front', label: 'Frente', pieceId: 'front' },
     { id: 'back', label: 'Espalda', pieceId: 'back' },
   ],
+  halfPieces: FRONT_BACK_HALVES,
   draft: (m, o) => draftWomenSkirt(m, { sideSeamShift: mmOption(o.sideSeamShift, 0) }),
 }
 
@@ -169,6 +179,7 @@ export const MEN_BODICE_BLOCK: BlockDef<'es-men-easd'> = {
     { id: 'front', label: 'Frente', pieceId: 'front' },
     { id: 'back', label: 'Espalda', pieceId: 'back' },
   ],
+  halfPieces: FRONT_BACK_HALVES,
   draft: (m, o) => draftMenBodice(m, { length: o.length === 'hip' ? 'hip' : 'shirt' }),
 }
 
@@ -256,7 +267,7 @@ export const MEN_TROUSERS_BLOCK: BlockDef<'es-men-easd'> = {
   cut: TROUSER_CUT,
   draft: (m, o) =>
     draftMenTrousers(m, {
-      crotchEase: Number(o.crotchEase) || 0,
+      crotchEase: mmOption(o.crotchEase, MEN_TROUSERS_BLOCK_DEFAULTS.crotchEase),
       crotchExtensionEase: MEN_TROUSERS_BLOCK_DEFAULTS.crotchExtensionEase,
     }),
 }
@@ -310,6 +321,10 @@ export const draftBlock = (block: AnyBlockDef, size: string, options: BlockOptio
   const draft = block.draft as (m: Readonly<Record<string, number>>, o: BlockOptions) => Draft
   return draft(getMeasurements(block.system, size as SizeOf<typeof block.system>), merged)
 }
+
+/** True for a piece the block drafts as a half (default "al doblez" when it has a centre edge). */
+export const isHalfPiece = (block: AnyBlockDef, pieceId: string): boolean =>
+  block.halfPieces?.includes(pieceId) ?? false
 
 export const pieceCut = (block: AnyBlockDef, pieceId: string): PieceCutInfo =>
   block.cut?.[pieceId] ?? DEFAULT_CUT

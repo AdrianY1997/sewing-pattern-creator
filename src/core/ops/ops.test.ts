@@ -13,6 +13,7 @@ import {
   splitPieceKey,
   worldSegment,
 } from './pattern'
+import { pieceLayoutBBox } from './marks'
 import { replay } from './replay'
 import type { Operation, PatternPiece } from './types'
 
@@ -368,8 +369,9 @@ describe('autoLayout', () => {
   it('defaults to a 30 mm gap and keeps a single row when it fits', () => {
     const r = replay(rects(), [op({ type: 'extractAll' }), op({ type: 'autoLayout' })])
     const [a, b] = r.pattern.pieces
-    const ba = pieceWorldBBox(a)
-    const bb = pieceWorldBBox(b)
+    // The gap is measured between cut lines (the pieces carry the default allowance).
+    const ba = pieceLayoutBBox(a)
+    const bb = pieceLayoutBBox(b)
     expect(bb.minX - ba.maxX).toBeCloseTo(30)
     expect(bb.minY).toBeCloseTo(ba.minY)
   })

@@ -12,7 +12,7 @@ import {
   type BlockOptionValue,
 } from '../../blocks'
 import type { MeasurementSystem } from '../../data'
-import type { Operation, OperationInput, Vec } from '../../core'
+import { operationProblem, type Operation, type OperationInput, type Vec } from '../../core'
 import {
   DEFAULT_PX_PER_MM,
   isValidPxPerMm,
@@ -20,6 +20,7 @@ import {
   saveCalibration,
 } from '../canvas/calibration'
 import { IDENTITY_VIEW, panBy, zoomAt, type ViewTransform } from '../canvas/viewTransform'
+import { cachedDraft, statePattern } from './patternData'
 import { DEFAULT_LAYERS, type LayerId, type LayerVisibility } from './layers'
 
 /** "Opciones avanzadas": stored now, applied by the editing operations of F4. */
@@ -168,17 +169,64 @@ let opCounter = 0
 export const newOpId = (): string =>
   `op-${Date.now().toString(36)}-${(++opCounter).toString(36)}${Math.random().toString(36).slice(2, 6)}`
 
-/** Keep only well-formed operations from a stored project (replay reports the rest). */
-export const sanitizeOperations = (v: unknown): Operation[] =>
-  Array.isArray(v)
-    ? (v.filter(
-        (o: unknown) =>
-          typeof o === 'object' &&
-          o !== null &&
-          typeof (o as { id?: unknown }).id === 'string' &&
-          typeof (o as { type?: unknown }).type === 'string',
-      ) as Operation[])
-    : []
+/**
+ * Keep only well-formed operations from a stored project: each type's parameters are validated,
+ * the rest are dropped with a console.warn (replay reports operations that do not apply).
+ */
+export const sanitizeOperations = (v: unknown): Operation[] => {
+  if (!Array.isArray(v)) return []
+  const out: Operation[] = []
+  for (const o of v as unknown[]) {
+    const problem = operationProblem(o)
+    if (problem === null) out.push(o as Operation)
+    else console.warn(`Operación descartada al cargar el proyecto: ${problem}`, o)
+  }
+  return out
+}
+
+const clampMm = (v: unknown, fallback: number, max: number): number =>
+  typeof v === 'number' && Number.isFinite(v) ? Math.min(max, Math.max(0, v)) : fallback
+
+/** "Opciones avanzadas" from a stored project, field by field (bad values fall back to defaults). */
+export const sanitizeAdvanced = (v: unknown): AdvancedOptions => {
+  const a = (typeof v === 'object' && v !== null ? v : {}) as Record<string, unknown>
+  const flag = (k: keyof AdvancedOptions & string, d: boolean) =>
+    typeof a[k] === 'boolean' ? a[k] : d
+  return {
+    seamAllowance: flag('seamAllowance', DEFAULT_ADVANCED.seamAllowance),
+    seamAllowanceMm: clampMm(a.seamAllowanceMm, DEFAULT_ADVANCED.seamAllowanceMm, 50),
+    hem: flag('hem', DEFAULT_ADVANCED.hem),
+    hemMm: clampMm(a.hemMm, DEFAULT_ADVANCED.hemMm, 100),
+    darts: flag('darts', DEFAULT_ADVANCED.darts),
+    bias: flag('bias', DEFAULT_ADVANCED.bias),
+  }
+}
+
+/**
+ * The selection of `s` restricted to what exists in what the canvas shows (the replayed pattern in
+ * Piezas, the draft in Trazo): ids that no longer exist are cleared.
+ */
+export const validSelection = (
+  s: EditorData,
+): Pick<EditorData, 'selectedPieceId' | 'selectedSegmentId'> => {
+  if (s.selectedPieceId === null && s.selectedSegmentId === null)
+    return { selectedPieceId: null, selectedSegmentId: null }
+  let draft
+  try {
+    draft =
+      s.viewMode === 'pieces'
+        ? statePattern(s).world
+        : cachedDraft(s.blockId, s.size, s.blockOptions).draft
+  } catch {
+    return { selectedPieceId: null, selectedSegmentId: null }
+  }
+  const pieceOk = s.selectedPieceId !== null && draft.pieces.some((p) => p.id === s.selectedPieceId)
+  const segOk = s.selectedSegmentId !== null && s.selectedSegmentId in draft.segments
+  return {
+    selectedPieceId: pieceOk ? s.selectedPieceId : null,
+    selectedSegmentId: segOk ? s.selectedSegmentId : null,
+  }
+}
 
 const calibrationState = (v: number | null) => ({
   pxPerMm: v ?? DEFAULT_PX_PER_MM,
@@ -193,6 +241,12 @@ export const selectSnapshot = (s: EditorData): ProjectSnapshot => ({
   advanced: s.advanced,
   notes: s.notes,
   operations: s.operations,
+})
+
+/** `patch` plus the selection of the state it produces, with vanished ids cleared. */
+const withValidSelection = (s: EditorData, patch: Partial<EditorData>): Partial<EditorData> => ({
+  ...patch,
+  ...validSelection({ ...s, ...patch }),
 })
 
 export const useEditorStore = create<EditorState>()((set, get) => ({
@@ -218,12 +272,16 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
   },
 
   setSize: (size) => {
-    if (isBlockSize(getBlock(get().blockId), size)) set({ size })
+    if (isBlockSize(getBlock(get().blockId), size)) set(withValidSelection(get(), { size }))
   },
 
   setBlockOption: (key, value) => {
     const block = getBlock(get().blockId)
-    set({ blockOptions: sanitizeBlockOptions(block, { ...get().blockOptions, [key]: value }) })
+    set(
+      withValidSelection(get(), {
+        blockOptions: sanitizeBlockOptions(block, { ...get().blockOptions, [key]: value }),
+      }),
+    )
   },
 
   setAdvanced: (patch) => set({ advanced: { ...get().advanced, ...patch } }),
@@ -266,21 +324,25 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
     const { operations, undoStack, redoStack } = get()
     const prev = undoStack[undoStack.length - 1]
     if (!prev) return
-    set({
-      operations: prev,
-      undoStack: undoStack.slice(0, -1),
-      redoStack: [...redoStack, operations],
-    })
+    set(
+      withValidSelection(get(), {
+        operations: prev,
+        undoStack: undoStack.slice(0, -1),
+        redoStack: [...redoStack, operations],
+      }),
+    )
   },
   redo: () => {
     const { operations, undoStack, redoStack } = get()
     const next = redoStack[redoStack.length - 1]
     if (!next) return
-    set({
-      operations: next,
-      undoStack: [...undoStack, operations],
-      redoStack: redoStack.slice(0, -1),
-    })
+    set(
+      withValidSelection(get(), {
+        operations: next,
+        undoStack: [...undoStack, operations],
+        redoStack: redoStack.slice(0, -1),
+      }),
+    )
   },
   setViewMode: (viewMode) => {
     if (get().viewMode !== viewMode)
@@ -302,7 +364,7 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
       blockOptions: sanitizeBlockOptions(block, snap.blockOptions ?? {}),
       title: typeof snap.title === 'string' ? snap.title : get().title,
       titleEdited: typeof snap.title === 'string' ? snap.title !== block.label : get().titleEdited,
-      advanced: { ...DEFAULT_ADVANCED, ...snap.advanced },
+      advanced: sanitizeAdvanced(snap.advanced),
       notes: typeof snap.notes === 'string' ? snap.notes : '',
       operations: sanitizeOperations(snap.operations),
       undoStack: [],

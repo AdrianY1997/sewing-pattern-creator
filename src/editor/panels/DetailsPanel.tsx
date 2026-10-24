@@ -90,7 +90,10 @@ function PieceList() {
               >
                 <PieceThumbnail render={render} pieceIds={[p.id]} size={28} />
                 <span className="piece-name">{p.name}</span>
-                <span className="muted">x{p.label?.count ?? pieceCut(block, p.id).count}</span>
+                <span className="muted">
+                  x{p.label?.count ?? pieceCut(block, p.id).count}
+                  {p.label?.onFold ? ' (al doblez)' : ''}
+                </span>
               </button>
               {mode === 'trace' && (
                 <button

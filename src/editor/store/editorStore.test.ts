@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { PX_PER_MM, screenToWorld } from '../canvas/viewTransform'
 import { DEFAULT_ADVANCED, selectSnapshot, useEditorStore } from './editorStore'
 import { DEFAULT_LAYERS, LAYERS } from './layers'
@@ -208,5 +208,112 @@ describe('operations and undo/redo', () => {
     expect(st().undoStack).toEqual([])
     st().loadSnapshot({ blockId: 'women-bodice' }) // old save without operations
     expect(st().operations).toEqual([])
+  })
+})
+
+describe('selection stays valid', () => {
+  beforeEach(() => st().reset())
+
+  const separated = () => {
+    st().applyOps({ type: 'extractAll' })
+    st().setViewMode('pieces')
+  }
+
+  it('undo clears a selected piece that the replayed pattern no longer has', () => {
+    separated()
+    st().applyOps({ type: 'duplicatePiece', pieceId: 'front', newId: 'front-2' })
+    st().selectSegment('front-2/front.cf', 'front-2')
+    st().undo()
+    expect(st().selectedPieceId).toBeNull()
+    expect(st().selectedSegmentId).toBeNull()
+  })
+
+  it('redo and undo keep a selection that still exists', () => {
+    separated()
+    st().applyOps({ type: 'duplicatePiece', pieceId: 'front', newId: 'front-2' })
+    st().selectPiece('front')
+    st().undo()
+    expect(st().selectedPieceId).toBe('front')
+    st().redo()
+    expect(st().selectedPieceId).toBe('front')
+  })
+
+  it('clears only the segment when its piece survives', () => {
+    separated()
+    st().applyOps({ type: 'cutOnFold', pieceId: 'back', foldSegmentId: 'back.cb' })
+    st().selectSegment('back/back.cb~m', 'back')
+    st().undo()
+    expect(st().selectedPieceId).toBe('back')
+    expect(st().selectedSegmentId).toBeNull()
+  })
+
+  it('setSize and setBlockOption drop ids that vanish (bodice length changes the segments)', () => {
+    st().selectSegment('front.cfHip', 'front')
+    st().setBlockOption('length', 'waist')
+    expect(st().selectedPieceId).toBe('front')
+    expect(st().selectedSegmentId).toBeNull()
+    st().selectSegment('front.cf', 'front')
+    st().setSize('12')
+    expect(st().selectedSegmentId).toBe('front.cf')
+  })
+
+  it('loadSnapshot starts with no selection', () => {
+    st().selectPiece('front')
+    st().loadSnapshot({ blockId: 'women-bodice' })
+    expect(st().selectedPieceId).toBeNull()
+  })
+})
+
+describe('loadSnapshot sanitisation', () => {
+  beforeEach(() => st().reset())
+
+  it('sanitises advanced field by field', () => {
+    st().loadSnapshot({
+      advanced: {
+        seamAllowance: 'yes',
+        seamAllowanceMm: 9999,
+        hem: false,
+        hemMm: -5,
+        darts: 1,
+        bias: true,
+      } as never,
+    })
+    expect(st().advanced).toEqual({
+      seamAllowance: DEFAULT_ADVANCED.seamAllowance,
+      seamAllowanceMm: 50,
+      hem: false,
+      hemMm: 0,
+      darts: DEFAULT_ADVANCED.darts,
+      bias: true,
+    })
+    st().loadSnapshot({ advanced: { seamAllowanceMm: NaN, hemMm: Infinity } as never })
+    expect(st().advanced.seamAllowanceMm).toBe(DEFAULT_ADVANCED.seamAllowanceMm)
+    expect(st().advanced.hemMm).toBe(DEFAULT_ADVANCED.hemMm)
+    st().loadSnapshot({ advanced: 'junk' as never })
+    expect(st().advanced).toEqual(DEFAULT_ADVANCED)
+  })
+
+  it('drops operations with invalid params, with a console.warn', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const good = [
+      { id: 'a', type: 'extractAll' },
+      { id: 'b', type: 'transformPiece', pieceId: 'front', translate: { x: 1, y: 2 } },
+      { id: 'c', type: 'setSeamAllowance', pieceId: 'front', segmentIds: 'all', mm: 12 },
+      { id: 'd', type: 'addNotch', pieceId: 'front', segmentId: 'front.cf', atRatio: 0.5 },
+    ]
+    const bad = [
+      { id: 'e', type: 'transformPiece', pieceId: 'front', translate: { x: 'a', y: 2 } },
+      { id: 'f', type: 'setSeamAllowance', pieceId: 'front', segmentIds: 'all', mm: NaN },
+      { id: 'g', type: 'setSeamAllowance', pieceId: 'front', segmentIds: [], mm: 5 },
+      { id: 'h', type: 'addNotch', pieceId: 'front', segmentId: 'front.cf' },
+      { id: 'i', type: 'mirrorPiece', pieceId: 'front', axis: 'diag', keepOriginal: true },
+      { id: 'j', type: 'addButton', pieceId: 'front', at: { pointName: 'A' }, diameterMm: '9' },
+      { id: 'k', type: 'nope' },
+      { id: 'l', type: 'cutOnFold', pieceId: 'front' },
+    ]
+    st().loadSnapshot({ operations: [...good, ...bad] as never })
+    expect(st().operations.map((o) => o.id)).toEqual(['a', 'b', 'c', 'd'])
+    expect(warn).toHaveBeenCalledTimes(bad.length)
+    warn.mockRestore()
   })
 })

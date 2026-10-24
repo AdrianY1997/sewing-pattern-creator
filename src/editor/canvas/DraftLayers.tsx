@@ -71,9 +71,10 @@ function PieceLabel({ piece, block, px }: { piece: PieceRender; block: AnyBlockD
       <tspan x={x}>{piece.name}</tspan>
       <tspan x={x} dy="1.2em">
         x{cut.count}
+        {cut.onFold ? ' (al doblez)' : ''}
       </tspan>
       <tspan x={x} dy="1.2em">
-        ({cut.material}){cut.onFold ? ' · al doblez' : ''}
+        ({cut.material})
       </tspan>
     </text>
   )

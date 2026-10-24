@@ -8,6 +8,7 @@ import {
   defaultBlockOptions,
   draftBlock,
   getBlock,
+  MEN_TROUSERS_BLOCK,
   isBlockSize,
   pieceCut,
   sanitizeBlockOptions,
@@ -92,4 +93,14 @@ describe('block registry', () => {
       }
     },
   )
+})
+
+describe('men trousers option', () => {
+  it('crotchEase goes through mmOption: invalid values fall back to the block default', () => {
+    const ok = draftBlock(MEN_TROUSERS_BLOCK, '48', { crotchEase: '10' })
+    const bad = draftBlock(MEN_TROUSERS_BLOCK, '48', { crotchEase: 'abc' })
+    const dflt = draftBlock(MEN_TROUSERS_BLOCK, '48')
+    expect(JSON.stringify(bad)).toBe(JSON.stringify(dflt))
+    expect(JSON.stringify(ok)).not.toBe(JSON.stringify(dflt))
+  })
 })

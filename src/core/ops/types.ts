@@ -261,6 +261,11 @@ export interface ReplayResult {
 export interface PieceDefaults {
   readonly cutCount?: number
   readonly fabric?: string
+  /**
+   * The block drafts this piece as a half: when its outline has a centre front / centre back edge
+   * it is extracted "al doblez" (onFold, cut once, no allowance on the fold edge).
+   */
+  readonly halfPiece?: boolean
 }
 
 /** Seam allowance given to the edges of a freshly extracted piece ("Opciones avanzadas"). */

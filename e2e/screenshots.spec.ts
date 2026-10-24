@@ -78,3 +78,14 @@ test.describe('narrow', () => {
     await page.screenshot({ path: path.join(dir, 'f2b-narrow.png') })
   })
 })
+
+test('F4 fixes: women skirt separated, Piezas, with seam allowance', async ({ page }) => {
+  await page.goto('./')
+  await page.getByRole('combobox', { name: 'Tipo de prenda' }).selectOption('women-skirt')
+  await page.getByTestId('separate-all').click()
+  await expect(page.getByTestId('canvas-viewport')).toHaveAttribute('data-view', 'pieces')
+  await expect(page.getByTestId('seam-line')).toHaveCount(2)
+  await page.locator('.layers-head').click()
+  await page.mouse.move(700, 900)
+  await page.screenshot({ path: path.join(dir, 'fix-skirt.png') })
+})

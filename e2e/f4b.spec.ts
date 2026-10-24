@@ -39,8 +39,9 @@ test('seam allowance, notches by clicking, size change, undo and redo', async ({
     .locator('[data-testid="piece-outline"][data-piece="back"]')
     .boundingBox()
   if (!outline) throw new Error('no back outline')
-  // The centre back is the left edge of the back bodice; click a little off it (snap tolerance).
-  const at = { x: outline.x + 2, y: outline.y + outline.height * 0.45 }
+  // The centre back is cut on the fold (no allowance, so no cut-line notch): click the hem instead,
+  // a little above it (snap tolerance).
+  const at = { x: outline.x + outline.width * 0.5, y: outline.y + outline.height - 3 }
   await page.mouse.move(at.x, at.y)
   await expect(page.getByTestId('notch-preview')).toHaveCount(1)
   await page.mouse.click(at.x, at.y)
@@ -93,7 +94,11 @@ test('Aplicar a todos, typed notch, delete a mark and the Costura layer toggle',
   await expect(seam(page, 'front')).not.toHaveAttribute('d', d0!)
   const inputs = page.getByTestId('allowance-input')
   const n = await inputs.count()
-  for (let i = 0; i < n; i++) await expect(inputs.nth(i)).toHaveValue('15')
+  // The centre front is cut on the fold ("al doblez" by default): disabled, always 0.
+  for (let i = 0; i < n; i++) {
+    const input = inputs.nth(i)
+    await expect(input).toHaveValue((await input.isDisabled()) ? '0' : '15')
+  }
 
   // Typed notch: select the shoulder edge, then 30 mm from its start.
   await page.locator('tr[data-segment="front.shoulder"] .edge-name').click()

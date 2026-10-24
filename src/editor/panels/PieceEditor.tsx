@@ -120,7 +120,10 @@ export function PieceEditor({ piece }: { piece: PatternPiece }) {
           <input
             type="checkbox"
             checked={piece.onFold}
-            onChange={(ev) => A.setMeta(id, { onFold: ev.target.checked })}
+            title="Pieza cortada una vez sobre el doblez de la tela; el borde del centro no lleva margen"
+            onChange={(ev) =>
+              A.setMeta(id, ev.target.checked ? { onFold: true, cutCount: 1 } : { onFold: false })
+            }
           />
           Al doblez
         </label>

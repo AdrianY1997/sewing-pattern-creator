@@ -2,21 +2,23 @@
  * Seam allowance and mark geometry of pattern pieces (pure helpers shared by replay and the
  * editor). Everything works in the piece's LOCAL frame; map with `piece.transform` for the canvas.
  */
-import { bezierLength, nearestOnBezier } from '../bezier'
+import { bezierLength, nearestOnBezier, type BBox } from '../bezier'
 import { stripMeta, type DraftSegment } from '../draft'
 import {
   flattenPath,
   mapPath,
+  pathBBox,
   polygonSignedArea,
   segmentLength,
   segmentPointAtLength,
+  unionBBox,
   type Path,
   type Segment,
 } from '../path'
 import { seamAllowancePath } from '../seam'
 import { add, distance, perpendicularFoot, projectParam, scale, type Vec } from '../vec'
 import { applyAffine } from './affine'
-import { isCentreLineId, pieceLocalPath } from './pattern'
+import { isCentreLineId, pieceLocalPath, pieceWorldBBox } from './pattern'
 import type { PatternPiece } from './types'
 
 /**
@@ -57,6 +59,19 @@ export const pieceWorldCutPath = (piece: PatternPiece): Path | null => {
   const cut = pieceCutPath(piece)
   return cut && mapPath(cut, (p) => applyAffine(piece.transform, p))
 }
+
+/**
+ * World bounding box used to place pieces: the cut line (seam allowance path) when the piece has
+ * allowance, else the seam line. Pieces spaced by this box are never closer than the gap at the
+ * cut lines.
+ */
+export const pieceLayoutBBox = (piece: PatternPiece): BBox => {
+  const cut = pieceWorldCutPath(piece)
+  return cut ? pathBBox(cut) : pieceWorldBBox(piece)
+}
+
+export const piecesLayoutBBox = (pieces: readonly PatternPiece[]): BBox | null =>
+  pieces.length ? unionBBox(pieces.map(pieceLayoutBBox)) : null
 
 /** +1 when the outline turns from +x towards +y (positive signed area), else −1. */
 export const outlineWinding = (piece: PatternPiece): number =>

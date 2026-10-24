@@ -176,3 +176,66 @@ test('Guardar persists the operations with the project', async ({ page }) => {
   await expect(page.getByTestId('piece-outline')).toHaveCount(3)
   await expect(outline(page, 'back-2')).toHaveCount(1)
 })
+
+/** Start a Mover drag on the back piece and move it, leaving the button pressed. */
+const startDrag = async (page: Page) => {
+  await page.getByRole('button', { name: 'Mover', exact: true }).click()
+  const before = await box(page, 'back')
+  const start = { x: before.x + before.width * 0.4, y: before.y + before.height * 0.6 }
+  await page.mouse.move(start.x, start.y)
+  await page.mouse.down()
+  for (let i = 1; i <= 5; i++) await page.mouse.move(start.x + i * 8, start.y + i * 12)
+  const viewport = page.getByTestId('canvas-viewport')
+  await expect(viewport).toHaveClass(/is-dragging/)
+  return { before, viewport, start }
+}
+
+const cancels: [string, (page: Page) => Promise<void>][] = [
+  ['Escape', (page) => page.keyboard.press('Escape')],
+  [
+    'pointercancel',
+    (page) => page.getByTestId('canvas-viewport').dispatchEvent('pointercancel', { pointerId: 1 }),
+  ],
+  [
+    'lostpointercapture',
+    (page) =>
+      page.getByTestId('canvas-viewport').dispatchEvent('lostpointercapture', { pointerId: 1 }),
+  ],
+]
+
+for (const [name, cancel] of cancels)
+  test(`a drag cancelled by ${name} clears the preview and commits nothing`, async ({ page }) => {
+    await separateAll(page)
+    const { before, viewport, start } = await startDrag(page)
+    const moving = await box(page, 'back')
+    expect(moving.y - before.y).toBeGreaterThan(40) // the preview follows the cursor
+    await cancel(page)
+    await expect(viewport).not.toHaveClass(/is-dragging/)
+    const after = await box(page, 'back')
+    expect(Math.abs(after.y - before.y)).toBeLessThan(1)
+    expect(Math.abs(after.x - before.x)).toBeLessThan(1)
+    // Releasing the button afterwards commits nothing and later moves do not drag the piece.
+    await page.mouse.up()
+    await page.mouse.move(start.x + 100, start.y + 100)
+    const later = await box(page, 'back')
+    expect(Math.abs(later.y - before.y)).toBeLessThan(1)
+    // The only operation is still the extraction: one undo empties the pieces view.
+    await page.getByRole('button', { name: 'Deshacer' }).click()
+    await expect(page.getByTestId('pieces-empty')).toBeVisible()
+  })
+
+test('half pieces are separated "al doblez" by default; unfolding makes them x1 whole', async ({
+  page,
+}) => {
+  await page.goto('./')
+  await page.getByRole('combobox', { name: 'Tipo de prenda' }).selectOption('women-skirt')
+  await page.getByTestId('separate-all').click()
+  await expect(page.getByTestId('piece-outline')).toHaveCount(2)
+  const label = page.locator('[data-testid="piece-label"][data-piece="back"]')
+  await expect(label).toContainText('x1 (al doblez)')
+  await page.getByTestId('piece-item').filter({ hasText: 'Espalda' }).click()
+  await expect(page.getByRole('checkbox', { name: 'Al doblez' })).toBeChecked()
+  await page.getByRole('checkbox', { name: 'Al doblez' }).uncheck()
+  await expect(label).not.toContainText('al doblez')
+  await expect(label).toContainText('x1')
+})
