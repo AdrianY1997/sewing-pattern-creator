@@ -22,7 +22,7 @@ import {
   type ReplayResult,
 } from '../../core'
 import { buildDraftRender, type DraftRender } from '../canvas/draftGeometry'
-import { seamRender, type SeamRender } from '../canvas/seamGeometry'
+import { foldMarks, seamRender, type SeamRender } from '../canvas/seamGeometry'
 import type { AdvancedOptions, EditorData } from './editorStore'
 
 const CACHE_LIMIT = 48
@@ -91,6 +91,7 @@ export const buildPatternData = (result: ReplayResult): PatternData => {
       const p = meta.get(r.id)
       return p ? { ...r, label: { count: p.cutCount, material: p.fabric, onFold: p.onFold } } : r
     }),
+    foldMarks: result.pattern.pieces.flatMap(foldMarks),
     // Fit the view to the cut lines too.
     bbox: seams.length ? unionBBox([base.bbox, ...seams.map((s) => s.bbox)]) : base.bbox,
   }

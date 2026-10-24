@@ -106,10 +106,13 @@ export function patternToWorldDraft(pieces: readonly PatternPiece[]): Draft {
       id: k(mk.id),
       at: m(mk.at),
       ...(mk.data && {
-        data:
-          typeof mk.data.segment === 'string'
-            ? { ...mk.data, segment: k(mk.data.segment) }
-            : mk.data,
+        data: {
+          ...mk.data,
+          ...(typeof mk.data.segment === 'string' && { segment: k(mk.data.segment) }),
+          ...(Array.isArray(mk.data.segments) && {
+            segments: (mk.data.segments as unknown[]).map((x) => k(String(x))),
+          }),
+        },
       }),
     }))
     out.push({

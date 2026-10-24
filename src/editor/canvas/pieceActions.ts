@@ -4,10 +4,13 @@
  */
 import {
   splitPieceKey,
+  type LineAnchor,
   type MarkAnchor,
   type MirrorAxis,
   type PatternPiece,
   type PieceMark,
+  type PointRef,
+  type Vec,
 } from '../../core'
 import { useEditorStore } from '../store/editorStore'
 import { statePattern } from '../store/useDraft'
@@ -112,6 +115,56 @@ export const pieceActions = {
         ? { type: 'removeNotch', pieceId, markId: mark.id }
         : { type: 'removeMark', pieceId, markId: mark.id },
     )
+  },
+  // ---------- darts (Pinzas panel) ----------
+  closeDart(pieceId: string, dartId: string) {
+    store().applyOps({ type: 'closeDart', pieceId, dartId })
+  },
+  /** "Trasladar": the next click on an edge of the piece picks the target. */
+  startTransfer(pieceId: string, dartId: string) {
+    store().setDartTransfer({ pieceId, dartId })
+  },
+  transferDart(pieceId: string, dartId: string, toSegmentId: string, atRatio: number) {
+    const s = store()
+    s.setDartTransfer(null)
+    s.applyOps({ type: 'transferDart', pieceId, dartId, toSegmentId, atRatio })
+  },
+  dartToGather(pieceId: string, dartId: string) {
+    store().applyOps({ type: 'dartToGather', pieceId, dartId })
+  },
+  shortenDart(pieceId: string, dartId: string, shortenMm: number) {
+    store().applyOps({ type: 'setDartApex', pieceId, dartId, shortenMm })
+  },
+  // ---------- points, curves and lines ----------
+  addPoint(pieceId: string, segmentId: string, atRatio: number) {
+    store().applyOps({ type: 'splitSegment', pieceId, segmentId, atRatio })
+  },
+  removePoint(pieceId: string, point: PointRef) {
+    store().applyOps({ type: 'removePoint', pieceId, point })
+  },
+  convertSegment(pieceId: string, segmentId: string, to: 'line' | 'curve') {
+    store().applyOps({ type: 'convertSegment', pieceId, segmentId, to })
+  },
+  addLine(
+    pieceId: string,
+    from: LineAnchor,
+    to: LineAnchor,
+    kind: 'line' | 'curve',
+    handles?: { c1: Vec; c2: Vec },
+  ) {
+    store().applyOps({
+      type: 'addInternalLine',
+      pieceId,
+      from,
+      to,
+      kind,
+      ...(handles && { handles }),
+    })
+  },
+  splitPiece(pieceId: string, lineId: string) {
+    const s = store()
+    s.applyOps({ type: 'splitPiece', pieceId, lineId })
+    s.selectPiece(`${pieceId}~a`)
   },
   /** Back to the block's grainline. */
   resetGrainline(pieceId: string) {

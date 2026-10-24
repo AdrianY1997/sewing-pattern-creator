@@ -41,10 +41,13 @@ export function notchCandidate(
   render: DraftRender,
   p: Vec,
   tolMm: number,
+  /** Restrict to the outline of this piece. */
+  only?: string,
 ): NotchCandidate | null {
   let best: { key: string; pieceId: string; len: number; distance: number } | null = null
   for (const sg of render.segments) {
-    if (sg.layer !== 'outline' || !sg.pieceId) continue
+    if (sg.layer !== 'outline' || sg.internal || !sg.pieceId) continue
+    if (only && sg.pieceId !== only) continue
     const s = world.segments[sg.id]
     if (!s) continue
     const hit = projectOnSegment(stripMeta(s), p)

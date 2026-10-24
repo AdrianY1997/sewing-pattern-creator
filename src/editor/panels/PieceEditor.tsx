@@ -4,6 +4,7 @@ import { getTable } from '../../data'
 import { isFoldableEdge, pieceActions, selectedEdgeOf } from '../canvas/pieceActions'
 import { useEditorStore } from '../store/editorStore'
 import { useCurrentPattern } from '../store/useDraft'
+import { DartsSection, SegmentSection } from './PieceGeometry'
 import { AllowanceSection, MarksSection } from './PieceMarks'
 
 /** Text/number field committed on blur or Enter (one operation per edit, not per keystroke). */
@@ -128,6 +129,8 @@ export function PieceEditor({ piece }: { piece: PatternPiece }) {
           Al doblez
         </label>
       </div>
+      <SegmentSection piece={piece} />
+      <DartsSection piece={piece} />
       <AllowanceSection piece={piece} />
       <MarksSection piece={piece} />
     </div>

@@ -23,13 +23,15 @@
   justify-content: center;
   gap: 3px;
   flex-shrink: 0;
-  min-width: 48px;
-  padding: 6px 5px;
+  min-width: 46px;
+  max-width: 60px;
+  padding: 6px 4px;
   border: none;
   border-radius: var(--radius-md);
   background: none;
   font-size: 10.5px;
-  white-space: nowrap;
+  line-height: 1.15;
+  text-align: center;
 }
 
 .tool:not(:disabled):hover {
@@ -43,7 +45,7 @@
 
 .tool-sep {
   width: 1px;
-  margin: 4px var(--sp-2);
+  margin: 4px var(--sp-1);
   background: var(--border);
 }
 
@@ -484,6 +486,124 @@
 
 .viewport.tool-notch .piece {
   cursor: crosshair;
+}
+
+.viewport.tool-crosshair,
+.viewport.tool-crosshair .piece {
+  cursor: crosshair;
+}
+
+.viewport.over-vertex,
+.viewport.over-vertex .piece {
+  cursor: move;
+}
+
+.style-line {
+  fill: none;
+  stroke: var(--layer-outline);
+  stroke-width: 1.25px;
+  stroke-dasharray: 8 3;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+.fold-mark path {
+  fill: none;
+  stroke: var(--layer-outline);
+  stroke-width: 1px;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+.fold-mark .fold-arrows {
+  fill: var(--layer-outline);
+}
+
+.fold-mark text,
+.gather-mark text {
+  fill: var(--layer-outline);
+  font-family: var(--font);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  pointer-events: none;
+  paint-order: stroke;
+  stroke: var(--canvas-bg);
+  stroke-linejoin: round; /* stroke-width set inline (world units) */
+}
+
+.gather-mark path {
+  fill: none;
+  stroke: var(--layer-darts);
+  stroke-width: 1.2px;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+.gather-mark text {
+  fill: var(--layer-darts);
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.point-preview circle,
+.vertex-preview {
+  fill: var(--primary-soft);
+  stroke: var(--selection);
+  stroke-width: 1.5px;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+.vertex-preview.is-remove {
+  fill: rgb(224 48 72 / 0.15);
+  stroke: #d93a4f;
+}
+
+.transfer-cut {
+  stroke: var(--layer-darts);
+  stroke-width: 1.5px;
+  stroke-dasharray: 5 3;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+.curve-handles line {
+  stroke: var(--selection);
+  stroke-width: 1px;
+  stroke-dasharray: 3 2;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+.curve-handle {
+  fill: #fff;
+  stroke: var(--selection);
+  stroke-width: 1.5px;
+  vector-effect: non-scaling-stroke;
+  cursor: move;
+}
+
+.canvas-hint {
+  position: absolute;
+  top: var(--sp-3);
+  left: 50%;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  max-width: calc(100% - 32px);
+  padding: 6px var(--sp-3);
+  transform: translateX(-50%);
+  border-radius: var(--radius-full);
+  background: var(--panel-bg);
+  box-shadow: var(--shadow-float);
+  font-size: var(--fs-sm);
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.canvas-hint .text-input {
+  width: 120px;
 }
 
 .notch-preview {

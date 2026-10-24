@@ -40,8 +40,29 @@ export type LeftTab = 'design' | 'measurements' | 'settings'
  * - move: drag extracted pieces (Piezas view); elsewhere the drag pans the view
  * - rotate: rotate extracted pieces by dragging (Shift: 15° steps)
  * - notch: "Añadir piquete", a click on the outline of an extracted piece adds a notch there
+ * - addPoint / removePoint: "Añadir punto" (click the outline) / "Eliminar punto" (click a vertex)
+ * - curve: drag the handles of the selected curve, or drag to draw a curved internal line
+ * - line: drag to draw a straight internal line
+ * - text / button: a click inside a piece places a text mark / a button
  */
-export type Tool = 'select' | 'pan' | 'move' | 'rotate' | 'notch'
+export type Tool =
+  | 'select'
+  | 'pan'
+  | 'move'
+  | 'rotate'
+  | 'notch'
+  | 'addPoint'
+  | 'removePoint'
+  | 'curve'
+  | 'line'
+  | 'text'
+  | 'button'
+
+/** "Trasladar" of the Pinzas panel waiting for the click on the target edge. */
+export interface PendingDartTransfer {
+  readonly pieceId: string
+  readonly dartId: string
+}
 /** Canvas view: the combined construction ("Trazo") or the extracted pieces ("Piezas"). */
 export type ViewMode = 'trace' | 'pieces'
 /** Side panel shown as a drawer on narrow screens (docs/UI.md §5). */
@@ -81,6 +102,12 @@ export interface EditorData {
   /** Undone operation lists (most recent last). */
   readonly redoStack: readonly (readonly Operation[])[]
   readonly viewMode: ViewMode
+  /** Dart transfer waiting for its target edge (canvas click), or null. */
+  readonly dartTransfer: PendingDartTransfer | null
+  /** Text placed by the Texto tool. */
+  readonly markText: string
+  /** Diameter (mm) of the buttons placed by the Botón tool. */
+  readonly buttonMm: number
 }
 
 /** The part of the state saved by "Guardar". */
@@ -120,6 +147,9 @@ export interface EditorActions {
   undo(): void
   redo(): void
   setViewMode(mode: ViewMode): void
+  setDartTransfer(pending: PendingDartTransfer | null): void
+  setMarkText(text: string): void
+  setButtonMm(mm: number): void
   loadSnapshot(snapshot: Partial<ProjectSnapshot>): void
   reset(): void
 }
@@ -159,6 +189,9 @@ const initialData = (): EditorData => {
     drawer: null,
     ...EMPTY_HISTORY,
     viewMode: 'trace',
+    dartTransfer: null,
+    markText: 'Texto',
+    buttonMm: 12,
   }
 }
 
@@ -268,6 +301,7 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
       // Operations refer to the pieces of the block: another block starts a new log.
       ...EMPTY_HISTORY,
       viewMode: 'trace',
+      dartTransfer: null,
     })
   },
 
@@ -306,7 +340,7 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
   },
   setCalibrationOpen: (calibrationOpen) => set({ calibrationOpen }),
   setDrawer: (drawer) => set({ drawer }),
-  setTool: (tool) => set({ tool }),
+  setTool: (tool) => set({ tool, dartTransfer: null }),
   setLeftTab: (leftTab) => set({ leftTab }),
 
   applyOps: (input) => {
@@ -346,7 +380,12 @@ export const useEditorStore = create<EditorState>()((set, get) => ({
   },
   setViewMode: (viewMode) => {
     if (get().viewMode !== viewMode)
-      set({ viewMode, selectedPieceId: null, selectedSegmentId: null })
+      set({ viewMode, selectedPieceId: null, selectedSegmentId: null, dartTransfer: null })
+  },
+  setDartTransfer: (dartTransfer) => set({ dartTransfer }),
+  setMarkText: (markText) => set({ markText }),
+  setButtonMm: (mm) => {
+    if (Number.isFinite(mm) && mm > 0 && mm <= 100) set({ buttonMm: mm })
   },
 
   loadSnapshot: (snap) => {

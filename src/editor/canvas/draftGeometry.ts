@@ -10,6 +10,7 @@ import {
   polygonSignedArea,
   segmentBBox,
   segmentLength,
+  segmentPointAtLength,
   segStart,
   stripMeta,
   toSvgPathData,
@@ -17,6 +18,7 @@ import {
   type BBox,
   type Draft,
   type Piece,
+  type Segment,
   type Vec,
 } from '../../core'
 
@@ -29,6 +31,14 @@ export interface SegmentRender {
   readonly d: string
   readonly layer: SegmentLayer
   readonly pieceId?: string
+  /** An internal line drawn on the outline layer (style / seam line), not an outline edge. */
+  readonly internal?: boolean
+}
+
+/** A vertex of an outline: one end of an outline segment (world-draft segment id). */
+export interface VertexRef {
+  readonly segmentId: string
+  readonly end: 'start' | 'end'
 }
 
 export interface PieceRender {
@@ -38,6 +48,8 @@ export interface PieceRender {
   readonly d: string
   /** Outline vertices (segment joins). */
   readonly vertices: readonly Vec[]
+  /** For each vertex, the outline segment that starts there (as `{ segmentId, end }`). */
+  readonly vertexRefs: readonly VertexRef[]
   readonly bbox: BBox
   /** Area centroid. */
   readonly centroid: Vec
@@ -93,6 +105,29 @@ export interface NotchRender {
   readonly pieceId: string
   /** One [from, to] segment per tick (a double notch has two). */
   readonly ticks: readonly (readonly [Vec, Vec])[]
+}
+
+/** Gathers ("fruncir") along an edge: a wavy line inside the piece with end ticks. */
+export interface GatherRender {
+  readonly id: string
+  readonly pieceId: string
+  readonly d: string
+  readonly textAt: Vec
+  /** Text rotation (degrees), along the edge and readable. */
+  readonly angle: number
+  readonly text: string
+}
+
+/** Fold indicator on a fold edge: a bracket with arrows to the edge and "DOBLEZ". */
+export interface FoldMarkRender {
+  readonly id: string
+  readonly pieceId: string
+  /** Bracket (open path). */
+  readonly d: string
+  /** Arrow heads (closed polygons as path data). */
+  readonly arrows: string
+  readonly textAt: Vec
+  readonly angle: number
 }
 
 export const NOTCH_LENGTH = 5
@@ -157,20 +192,92 @@ export interface DraftRender {
   readonly guides: readonly LineRender[]
   /** Fold lines of pieces unfolded with "cortar al doblez". */
   readonly folds: readonly LineRender[]
+  /** Style / seam lines (internal lines with role 'seam': yokes, princess lines, drawn lines). */
+  readonly styles: readonly LineRender[]
+  readonly gathers: readonly GatherRender[]
+  /** Fold indicators on the fold edges of extracted pieces (filled by the pattern data). */
+  readonly foldMarks: readonly FoldMarkRender[]
   readonly points: readonly { readonly name: string; readonly at: Vec }[]
   /** Every outline, dart and guide segment, for hover/selection (grainlines excluded). */
   readonly segments: readonly SegmentRender[]
   readonly bbox: BBox
 }
 
-export type InternalKind = 'grain' | 'dart' | 'guide' | 'fold'
+export type InternalKind = 'grain' | 'dart' | 'guide' | 'fold' | 'style'
 
-/** Classify an internal line of a piece by its grainline mark or its id. */
-export const classifyInternal = (piece: Piece, segmentId: string): InternalKind => {
+/**
+ * Classify an internal line of a piece: grainline (its mark), dart leg (the piece's darts, or an
+ * id with "dart"), style line (role 'seam'), fold line, else guide.
+ */
+export const classifyInternal = (piece: Piece, segmentId: string, draft?: Draft): InternalKind => {
   if (piece.marks.some((m) => m.kind === 'grainline' && m.data?.segment === segmentId))
     return 'grain'
   if (segmentId === 'fold' || segmentId.endsWith('/fold')) return 'fold'
+  if ((piece.darts ?? []).some((d) => [...d.legs, ...(d.legs2 ?? [])].includes(segmentId)))
+    return 'dart'
+  if (draft?.segments[segmentId]?.role === 'seam') return 'style'
   return /dart/i.test(segmentId) ? 'dart' : 'guide'
+}
+
+/** Degrees of a direction, flipped by 180° when needed so text along it reads left to right. */
+export const readableAngle = (dir: Vec): number => {
+  let a = (Math.atan2(dir.y, dir.x) * 180) / Math.PI
+  if (a > 90) a -= 180
+  if (a <= -90) a += 180
+  return a
+}
+
+/** Wavy gather line along a chain of world segments, on the side inside `poly`. */
+function gatherRender(
+  id: string,
+  pieceId: string,
+  segs: readonly Segment[],
+  poly: readonly Vec[],
+  text: string,
+): GatherRender | null {
+  const total = segs.reduce((a, s) => a + segmentLength(s), 0)
+  if (total <= 0) return null
+  const at = (len: number) => {
+    let rest = len
+    for (const s of segs) {
+      const l = segmentLength(s)
+      if (rest <= l + 1e-9) return segmentPointAtLength(s, Math.min(rest, l))
+      rest -= l
+    }
+    const last = segs[segs.length - 1]
+    return segmentPointAtLength(last, segmentLength(last))
+  }
+  const mid = at(total / 2)
+  const n0 = { x: -mid.tangent.y, y: mid.tangent.x }
+  const probe = { x: mid.point.x + n0.x * 3, y: mid.point.y + n0.y * 3 }
+  const side = pointInPolygon(probe, poly) ? 1 : -1
+  const steps = Math.max(6, Math.round(total / 3))
+  const pts: Vec[] = []
+  for (let i = 0; i <= steps; i++) {
+    const s = at((total * i) / steps)
+    const off = 7 + (i % 2 === 0 ? -1.6 : 1.6)
+    pts.push({
+      x: s.point.x - s.tangent.y * off * side,
+      y: s.point.y + s.tangent.x * off * side,
+    })
+  }
+  const tick = (len: number) => {
+    const s = at(len)
+    const n = { x: -s.tangent.y * side, y: s.tangent.x * side }
+    return `M${s.point.x} ${s.point.y}L${s.point.x + n.x * 11} ${s.point.y + n.y * 11}`
+  }
+  const wave = pts.map((p, i) => `${i ? 'L' : 'M'}${p.x} ${p.y}`).join('')
+  return {
+    id,
+    pieceId,
+    d: `${wave}${tick(0)}${tick(total)}`,
+    textAt: {
+      x: mid.point.x - mid.tangent.y * 17 * side,
+      y: mid.point.y + mid.tangent.x * 17 * side,
+    },
+    angle: readableAngle(mid.tangent),
+    text,
+  }
 }
 
 /** Area centroid of a polygon (falls back to the vertex average when degenerate). */
@@ -209,7 +316,8 @@ export function buildDraftRender(draft: Draft): DraftRender {
   const guides: LineRender[] = []
   const grainlines: GrainlineRender[] = []
   const folds: LineRender[] = []
-  const lists = { dart: darts, guide: guides, fold: folds }
+  const styles: LineRender[] = []
+  const lists = { dart: darts, guide: guides, fold: folds, style: styles }
 
   const polys = draft.pieces.map((pc) => flattenPath(piecePath(draft, pc.id), 0.5))
   const labels = labelPositions(polys)
@@ -218,7 +326,7 @@ export function buildDraftRender(draft: Draft): DraftRender {
     pc.outline.forEach((r) => used.add(r.segment))
     for (const id of pc.internalLines) {
       used.add(id)
-      const kind = classifyInternal(pc, id)
+      const kind = classifyInternal(pc, id, draft)
       if (kind === 'grain') {
         const s = draft.segments[id]
         grainlines.push({ id, pieceId: pc.id, from: s.p0, to: s.kind === 'line' ? s.p1 : s.p3 })
@@ -229,6 +337,10 @@ export function buildDraftRender(draft: Draft): DraftRender {
       name: pc.name,
       d: toSvgPathData(p),
       vertices: p.segments.map(segStart),
+      vertexRefs: pc.outline.map((r) => ({
+        segmentId: r.segment,
+        end: r.reversed ? ('end' as const) : ('start' as const),
+      })),
       bbox: pathBBox(p),
       centroid: polygonCentroid(polys[i]),
       labelAt: labels[i],
@@ -272,6 +384,18 @@ export function buildDraftRender(draft: Draft): DraftRender {
     r: (typeof m.data?.diameterMm === 'number' ? m.data.diameterMm : 10) / 2,
   }))
 
+  const gathers = draft.pieces.flatMap((pc, i) =>
+    pc.marks.flatMap((m) => {
+      if (m.kind !== 'gather' || !Array.isArray(m.data?.segments)) return []
+      const segs = (m.data.segments as unknown[])
+        .map((id) => draft.segments[String(id)])
+        .filter((s) => s !== undefined)
+        .map(stripMeta)
+      const text = typeof m.data.text === 'string' ? m.data.text : 'fruncir'
+      return gatherRender(m.id, pc.id, segs, polys[i], text) ?? []
+    }),
+  )
+
   const segments: SegmentRender[] = [
     ...draft.pieces.flatMap((pc) =>
       pc.outline.map((r) => ({
@@ -281,6 +405,7 @@ export function buildDraftRender(draft: Draft): DraftRender {
         pieceId: pc.id,
       })),
     ),
+    ...styles.map((l) => ({ ...l, layer: 'outline' as const, internal: true })),
     ...darts.map((l) => ({ ...l, layer: 'darts' as const })),
     ...guides.map((l) => ({ ...l, layer: 'guides' as const })),
   ]
@@ -288,6 +413,9 @@ export function buildDraftRender(draft: Draft): DraftRender {
   const segs = Object.values(draft.segments).map(stripMeta)
   return {
     folds,
+    styles,
+    gathers,
+    foldMarks: [],
     segments,
     pieces,
     darts,

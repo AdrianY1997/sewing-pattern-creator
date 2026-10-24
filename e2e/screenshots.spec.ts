@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 import path from 'node:path'
 
-/** Reference screenshots, only when SCREENSHOT_DIR is set (SCREENSHOT_DIR=… npm run test:e2e). */
+/** Reference screenshots, only when SCREENSHOT_DIR is set (SCREENSHOT_DIR=â€¦ npm run test:e2e). */
 const dir = process.env.SCREENSHOT_DIR ?? ''
 
 test.skip(!dir, 'set SCREENSHOT_DIR to capture screenshots')
@@ -55,13 +55,13 @@ test('F4b: skirt and trousers separated, with seam allowance and notches', async
     await expect(page.getByTestId('seam-line')).toHaveCount(2)
     await page.locator('.layers-head').click()
     // A notch added by clicking on the outline of the back piece (centre back, half way).
-    await page.getByRole('button', { name: 'Añadir piquete' }).click()
+    await page.getByRole('button', { name: 'AÃ±adir piquete' }).click()
     const outline = await page
       .locator('[data-testid="piece-outline"][data-piece="back"]')
       .boundingBox()
     if (!outline) throw new Error('no back piece')
     await page.mouse.click(outline.x + 1, outline.y + outline.height * 0.3)
-    // The notch selects the back piece: its Márgenes / Marcas show in the right panel.
+    // The notch selects the back piece: its MÃ¡rgenes / Marcas show in the right panel.
     await page.getByRole('button', { name: 'Seleccionar', exact: true }).click()
     await expect(page.getByTestId('allowance-section')).toBeVisible()
     await page.mouse.move(700, 1000)
@@ -74,7 +74,7 @@ test.describe('narrow', () => {
   test('F2b: drawers at 1000 px', async ({ page }) => {
     await page.goto('./')
     await page.getByRole('button', { name: 'Panel de detalles' }).click()
-    await expect(page.getByRole('complementary', { name: 'Detalles del patrón' })).toBeVisible()
+    await expect(page.getByRole('complementary', { name: 'Detalles del patrÃ³n' })).toBeVisible()
     await page.screenshot({ path: path.join(dir, 'f2b-narrow.png') })
   })
 })
@@ -88,4 +88,32 @@ test('F4 fixes: women skirt separated, Piezas, with seam allowance', async ({ pa
   await page.locator('.layers-head').click()
   await page.mouse.move(700, 900)
   await page.screenshot({ path: path.join(dir, 'fix-skirt.png') })
+})
+
+test('F4c: bust dart transferred to the shoulder, men back split at the yoke', async ({ page }) => {
+  await page.goto('./')
+  await page.getByTestId('separate-all').click()
+  await page.locator('.layers-head').click()
+  await page.getByTestId('piece-item').filter({ hasText: 'Delantero' }).click()
+  const box = await page.locator('.seg-hit[data-segment="front/front.shoulder"]').boundingBox()
+  if (!box) throw new Error('no shoulder')
+  const dart = page.locator('[data-testid="dart-item"][data-dart="front.bustDart"]')
+  await dart.getByRole('button', { name: 'Trasladar' }).click()
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2)
+  await expect(page.locator('[data-dart="front.bustDart~t"]')).toBeVisible()
+  await page.mouse.move(700, 960)
+  await page.screenshot({ path: path.join(dir, 'f4c-dart-transfer.png') })
+
+  await page.goto('./')
+  await page.getByRole('combobox', { name: 'Tipo de prenda' }).selectOption('men-bodice')
+  await page.getByTestId('separate-all').click()
+  await page.locator('.layers-head').click()
+  const yoke = await page.locator('.seg-hit[data-segment="back/back.yoke"]').boundingBox()
+  if (!yoke) throw new Error('no yoke')
+  await page.mouse.click(yoke.x + yoke.width / 2, yoke.y + yoke.height / 2)
+  await page.getByTestId('split-piece').click()
+  await expect(page.locator('[data-testid="piece-outline"][data-piece="back~b"]')).toHaveCount(1)
+  await page.getByRole('button', { name: 'Ajustar a pantalla' }).click()
+  await page.mouse.move(700, 960)
+  await page.screenshot({ path: path.join(dir, 'f4c-yoke.png') })
 })

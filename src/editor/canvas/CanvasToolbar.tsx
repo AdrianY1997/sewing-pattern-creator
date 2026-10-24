@@ -1,4 +1,5 @@
 import {
+  CircleDot,
   CircleMinus,
   CirclePlus,
   FlipHorizontal2,
@@ -10,6 +11,7 @@ import {
   Scissors,
   Slash,
   Spline,
+  Type,
   type LucideIcon,
 } from 'lucide-react'
 import { Fragment } from 'react'
@@ -49,12 +51,32 @@ const GROUPS: readonly (readonly ToolDef[])[] = [
       tool: 'rotate',
       hint: 'Rotar piezas separadas (arrastrar; Mayús: pasos de 15°)',
     },
-    { label: 'Añadir punto', icon: CirclePlus },
-    { label: 'Eliminar punto', icon: CircleMinus },
-    { label: 'Curva', icon: Spline },
+    {
+      label: 'Añadir punto',
+      icon: CirclePlus,
+      tool: 'addPoint',
+      hint: 'Añadir punto: clic sobre el contorno de una pieza separada',
+    },
+    {
+      label: 'Eliminar punto',
+      icon: CircleMinus,
+      tool: 'removePoint',
+      hint: 'Eliminar punto: clic sobre un vértice de una pieza separada',
+    },
+    {
+      label: 'Curva',
+      icon: Spline,
+      tool: 'curve',
+      hint: 'Curva: arrastrar las asas de la curva seleccionada, o trazar una línea curva',
+    },
   ],
   [
-    { label: 'Recta', icon: Slash },
+    {
+      label: 'Recta',
+      icon: Slash,
+      tool: 'line',
+      hint: 'Recta: trazar una línea dentro de una pieza separada (con ajuste)',
+    },
     {
       label: 'Simetría',
       icon: FlipHorizontal2,
@@ -76,6 +98,20 @@ const GROUPS: readonly (readonly ToolDef[])[] = [
       icon: Scissors,
       tool: 'notch',
       hint: 'Añadir piquete: clic sobre el contorno de una pieza separada (vista Piezas)',
+    },
+    {
+      label: 'Texto',
+      iconOnly: true,
+      icon: Type,
+      tool: 'text',
+      hint: 'Texto: clic dentro de una pieza separada para colocar una marca de texto',
+    },
+    {
+      label: 'Botón',
+      iconOnly: true,
+      icon: CircleDot,
+      tool: 'button',
+      hint: 'Botón: clic dentro de una pieza separada para colocar un botón',
     },
   ],
 ]

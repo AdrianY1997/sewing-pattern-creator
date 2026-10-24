@@ -175,6 +175,48 @@ export const DraftLayers = memo(function DraftLayers(props: DraftLayersProps) {
           {render.folds.map((l) => (
             <path key={l.id} className="fold-line" data-testid="fold-line" d={l.d} />
           ))}
+          {render.styles.map((l) => (
+            <path
+              key={l.id}
+              className="style-line"
+              data-testid="style-line"
+              data-segment={l.id}
+              d={l.d}
+            />
+          ))}
+          {render.foldMarks.map((f) => (
+            <g key={f.id} className="fold-mark" data-testid="fold-mark" data-piece-fold={f.pieceId}>
+              <path className="fold-bracket" d={f.d} />
+              <path className="fold-arrows" d={f.arrows} />
+              <text
+                x={f.textAt.x}
+                y={f.textAt.y}
+                fontSize={11 * px}
+                strokeWidth={3 * px}
+                textAnchor="middle"
+                dominantBaseline="middle"
+                transform={`rotate(${f.angle} ${f.textAt.x} ${f.textAt.y})`}
+              >
+                DOBLEZ
+              </text>
+            </g>
+          ))}
+          {render.gathers.map((g) => (
+            <g key={g.id} className="gather-mark" data-testid="gather-mark" data-mark={g.id}>
+              <path d={g.d} />
+              <text
+                x={g.textAt.x}
+                y={g.textAt.y}
+                fontSize={11 * px}
+                strokeWidth={3 * px}
+                textAnchor="middle"
+                dominantBaseline="middle"
+                transform={`rotate(${g.angle} ${g.textAt.x} ${g.textAt.y})`}
+              >
+                {g.text}
+              </text>
+            </g>
+          ))}
           {render.grainlines.map((g) => (
             <Grainline key={g.id} g={g} head={9 * px} />
           ))}
