@@ -1,4 +1,6 @@
 export * from './womenBodice'
 export * from './womenSleeve'
 export * from './womenSkirt'
+export * from './menBodice'
+export * from './menSleeve'
 export * from './registry'

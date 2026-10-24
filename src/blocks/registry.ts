@@ -11,6 +11,8 @@ import {
   type Sex,
   type SizeOf,
 } from '../data'
+import { draftMenBodice } from './menBodice'
+import { MEN_SLEEVE_DEFAULTS, draftMenSleeve } from './menSleeve'
 import { draftWomenBodice } from './womenBodice'
 import { draftWomenSkirt } from './womenSkirt'
 import { WOMEN_SLEEVE_DEFAULTS, draftWomenSleeve } from './womenSleeve'
@@ -143,10 +145,61 @@ export const WOMEN_SKIRT_BLOCK: BlockDef<'co-women-industrial'> = {
   draft: (m, o) => draftWomenSkirt(m, { sideSeamShift: mmOption(o.sideSeamShift, 0) }),
 }
 
+export const MEN_BODICE_BLOCK: BlockDef<'es-men-easd'> = {
+  id: 'men-bodice',
+  label: 'Cuerpo base / camisa hombre',
+  category: ['Cuerpo', 'Bloques base'],
+  sex: 'male',
+  system: 'es-men-easd',
+  defaultSize: '48',
+  options: [
+    {
+      key: 'length',
+      label: 'Largo',
+      choices: [
+        { value: 'shirt', label: 'Largo de camisa' },
+        { value: 'hip', label: 'Hasta la cadera' },
+      ],
+      default: 'shirt',
+    },
+  ],
+  views: [
+    { id: 'front', label: 'Frente', pieceId: 'front' },
+    { id: 'back', label: 'Espalda', pieceId: 'back' },
+  ],
+  draft: (m, o) => draftMenBodice(m, { length: o.length === 'hip' ? 'hip' : 'shirt' }),
+}
+
+export const MEN_SLEEVE_BLOCK: BlockDef<'es-men-easd'> = {
+  id: 'men-sleeve',
+  label: 'Manga base hombre',
+  category: ['Manga', 'Bloques base'],
+  sex: 'male',
+  system: 'es-men-easd',
+  defaultSize: '48',
+  options: [
+    {
+      key: 'capEase',
+      label: 'Embebido de copa',
+      choices: [
+        { value: '0', label: 'Sin embebido' },
+        { value: '10', label: '1 cm (camisa)' },
+        { value: '20', label: '2 cm' },
+      ],
+      default: String(MEN_SLEEVE_DEFAULTS.capEase),
+    },
+  ],
+  views: [{ id: 'sleeve', label: 'Manga', pieceId: 'sleeve' }],
+  cut: { sleeve: { count: 2, material: 'Tela' } },
+  draft: (m, o) => draftMenSleeve(m, { capEase: mmOption(o.capEase, MEN_SLEEVE_DEFAULTS.capEase) }),
+}
+
 export const BLOCKS: readonly AnyBlockDef[] = [
   WOMEN_BODICE_BLOCK,
   WOMEN_SLEEVE_BLOCK,
   WOMEN_SKIRT_BLOCK,
+  MEN_BODICE_BLOCK,
+  MEN_SLEEVE_BLOCK,
 ]
 
 export const DEFAULT_BLOCK_ID = WOMEN_BODICE_BLOCK.id
