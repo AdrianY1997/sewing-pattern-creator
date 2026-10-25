@@ -112,10 +112,10 @@ W = 480 + 80 = 560; línea de sisa 230 + 40 = 270; radio de escote r = 80.
 | Z, Z1 | mitad de Q–R | (280,62, 39,04), (280,62, 270) |
 | PS | (270 − 39,04)/2 | 115,48 |
 | A2 | 480/10 + 480/20 | (0, 72) |
-| A3 | horizontal y = 72 ∩ sisa de espalda (curva, valor del programa) | (218,27, 72) |
-| A4, A5 | paralela al hombro a 24 ∩ escote / sisa delantera (curvas, valor del programa) | (490,12, 21,83), (340,39, 78,39) |
+| A3 | horizontal y = 72 ∩ sisa de espalda (curva, valor del programa) | (218,09, 72) |
+| A4, A5 | paralela al hombro a 24 ∩ escote / sisa delantera (curvas, valor del programa) | (490,12, 21,83), (340,32, 78,42) |
 
-Resultados talla 48 (largo de camisa): ancho en la línea de sisa espalda 290 / delantero 270 (suma 560 = pecho + 8, media por pieza 280 = 48/2 + 4); hombros 157,74 = 157,74 mm; costados 485,08 = 485,08 mm (165,08 + 320); sisa espalda 291,70 mm, delantera 265,73 mm (total 557,43); PS 115,48 mm. Holgura sobre la cintura W − 400 = 160 mm y sobre la cadera W − 500 = 60 mm por medio cuerpo.
+Resultados talla 48 (largo de camisa): ancho en la línea de sisa espalda 290 / delantero 270 (suma 560 = pecho + 8, media por pieza 280 = 48/2 + 4); hombros 157,74 = 157,74 mm; costados 485,08 = 485,08 mm (165,08 + 320); sisa espalda 291,92 mm, delantera 266,18 mm (total 558,10); PS 115,48 mm. Holgura sobre la cintura W − 400 = 160 mm y sobre la cadera W − 500 = 60 mm por medio cuerpo.
 
 ## 6. Decisiones y desviaciones
 
@@ -123,7 +123,7 @@ Resultados talla 48 (largo de camisa): ancho en la línea de sisa espalda 290 / 
 2. **Anchos de espalda y pecho**: el método los saca de un cuadrado de sisa de ancho P/4 + 2 centrado en el costado, es decir espalda = 3P/8 + 4 y pecho = 3P/8 + 2 (en cm). Aquí se usan las medidas de la tabla: ancho de espalda EASD + 0,5 y ancho de pecho (§3.4.2) + 1. En la talla 48 coinciden exactamente con el método (22 y 20 cm); en las otras tallas siguen la gradación EASD (+0,5 por talla) en lugar de la proporcional (+0,75).
 3. **Holgura de sisa**: la línea de sisa se baja 4 cm de la profundidad de sisa EASD (método). La tabla no aporta la holgura.
 4. **Canesú delantero**: el texto dice P/10, pero la figura acotada del método marca **P/20** y la distancia dibujada coincide con P/20 (2,4 cm en la 48; con P/10 serían 4,8 cm, un canesú adelantado poco habitual). Se sigue la figura.
-5. **Curvas**: el método traza escotes y sisas a mano. Aquí son Bézier por los puntos del método, perpendiculares al centro espalda/delantero, al hombro y al costado (requisito SPEC §5). Las bisectrices U y V (3 y 2,5 cm) son una elección: el método solo da el tercio de apoyo, y estas distancias reproducen la figura.
+5. **Curvas**: el método traza escotes y sisas a mano. Aquí los escotes son un Bézier y las sisas una curva justa (`fairCurve`): G2 (curvatura continua) en todos los puntos, sin inflexión y con la curvatura subiendo y bajando una sola vez, como un trazo de pistola. Es un spline cúbico por los puntos cuyas velocidades en los extremos y espaciado de nudos se eligen minimizando ∫(dκ/ds)² ds; todos pasan por los puntos del método y son perpendiculares al centro espalda/delantero, al hombro y al costado (requisito SPEC §5). La versión anterior (tangentes Catmull–Rom) tenía dos inflexiones en la sisa de espalda (tallas 42–54), una en la delantera (52–54) y saltos de curvatura de hasta el 194 %. Las bisectrices U y V (3 y 2,5 cm) son una elección: el método solo da el tercio de apoyo, y estas distancias reproducen la figura.
 6. **Hombro**: igual en espalda y delantero (método), sin embebido de hombro. Es más largo que el "largo de hombro" de §3.4.2 (157,7 frente a 143 mm en la 48) porque la camisa clásica tiene el hombro caído 1 cm más allá del ancho de espalda.
 7. **Cintura y cadera**: la camisa base es recta. La cintura y la cadera EASD no cambian el trazo; solo se marcan las líneas (internas) y las pruebas comprueban que queda holgura en todas las tallas (la cintura salta +4 de la 48 a la 50, véase la nota de §3.2).
 8. **Cruce y tapeta**: la camisa del método añade una pretina de 3,5 cm en el centro delantero (el texto dice 0,75 cm y la figura 1,75 cm, la mitad de 3,5). Es un elemento del modelo, no de la base, así que el bloque termina en el centro delantero.

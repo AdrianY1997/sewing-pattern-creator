@@ -10,6 +10,7 @@ import {
   smoothWithTangents,
   type CubicBezier,
 } from './bezier'
+import { fairCurve, type FairCurveOptions } from './fairCurve'
 import { line, path, reverseSegment, segEnd, type LineSeg, type Path, type Segment } from './path'
 import { distance, type Vec } from './vec'
 
@@ -229,6 +230,27 @@ export class DraftBuilder {
       startDir,
       endDir,
       idPrefix,
+    )
+    curves.forEach((c, i) => this.segment(c, this.names(through[i], through[i + 1])))
+    return curves
+  }
+
+  /**
+   * Fair (G2, evenly bending) curve through points with prescribed end tangents (see fairCurve);
+   * segment ids are `${idPrefix}.0`, `${idPrefix}.1`…
+   */
+  fairCurve(
+    idPrefix: string,
+    through: readonly PointRef[],
+    startDir: Vec,
+    endDir: Vec,
+    options: Omit<FairCurveOptions, 'idPrefix'> = {},
+  ): CubicBezier[] {
+    const curves = fairCurve(
+      through.map((r) => this.resolve(r)),
+      startDir,
+      endDir,
+      { ...options, idPrefix },
     )
     curves.forEach((c, i) => this.segment(c, this.names(through[i], through[i + 1])))
     return curves

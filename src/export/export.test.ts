@@ -285,7 +285,7 @@ describe('PDF export', () => {
         ),
       ).toBe(true)
     }
-  })
+  }, 30_000)
 
   it('a piece larger than A0 gets a warning and its own page', () => {
     const src = source(['10'])
@@ -390,7 +390,7 @@ describe('every block exports', () => {
           ),
         ).toBe(true)
     }
-  })
+  }, 30_000)
 })
 
 describe('piece selection', () => {

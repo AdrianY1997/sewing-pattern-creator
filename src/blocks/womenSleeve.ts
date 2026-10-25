@@ -26,12 +26,14 @@ import {
   reverseBezier,
   scale,
   segmentLength,
-  smoothWithTangents,
+  cubic,
+  fitFairCurve,
   sub,
   vec,
   dot,
   type CubicBezier,
   type Draft,
+  type FairCurveShape,
   type PieceMark,
   type Vec,
 } from '../core'
@@ -136,12 +138,20 @@ interface CapGeometry {
   readonly front: readonly CubicBezier[]
   readonly backLength: number
   readonly frontLength: number
+  /** Shape of the fair cap curve (reused while solving for the cap height). */
+  readonly shape: FairCurveShape
 }
 
 const RIGHT = vec(1, 0)
 
-/** Cap points and curves for a given cap height (steps 3–6 of the method). */
-function capGeometry(capHeight: number, halfBicep: number): CapGeometry {
+/**
+ * Cap points and curves for a given cap height (steps 3–6 of the method). The cap is ONE fair
+ * curve B4 → B → B3 through the method's points: horizontal at the underarm points and at the top
+ * (method: 180° / 0°), curvature continuous everywhere (also at B), and one inflection on each
+ * half (the hollow below the notch turning into the crown). `shape` fixes the curve's shape
+ * parameters instead of fitting them.
+ */
+function capGeometry(capHeight: number, halfBicep: number, shape?: FairCurveShape): CapGeometry {
   const C = WOMEN_SLEEVE_CONSTANTS
   const B = vec(0, 0)
   const B2 = vec(0, capHeight)
@@ -162,9 +172,14 @@ function capGeometry(capHeight: number, halfBicep: number): CapGeometry {
   const B14 = add(B11, scale(outFront, C.capRaise))
   const B15 = add(B9, scale(outBack, -C.backHollow))
   const B16 = add(B12, scale(outFront, -C.frontHollow))
-  // Cap curves: horizontal at the underarm points and at the top (method: 180° / 0°).
-  const back = smoothWithTangents([B4, B15, B7, B13, B], RIGHT, RIGHT, 'sleeve.capBack')
-  const front = smoothWithTangents([B, B14, B10, B16, B3], RIGHT, RIGHT, 'sleeve.capFront')
+  const fit = fitFairCurve([B4, B15, B7, B13, B, B14, B10, B16, B3], RIGHT, RIGHT, {
+    tangents: { 4: RIGHT },
+    inflections: 2,
+    shape,
+  })
+  const rename = (c: CubicBezier, id: string) => cubic(id, c.p0, c.p1, c.p2, c.p3)
+  const back = fit.curves.slice(0, 4).map((c, i) => rename(c, WOMEN_SLEEVE_SEAMS.capBack[i]))
+  const front = fit.curves.slice(4).map((c, i) => rename(c, WOMEN_SLEEVE_SEAMS.capFront[i]))
   const total = (cs: readonly CubicBezier[]) => cs.reduce((s, c) => s + segmentLength(c), 0)
   return {
     points: { B, B2, B3, B4, B7, B8, B9, B10, B11, B12, B13, B14, B15, B16 },
@@ -172,13 +187,32 @@ function capGeometry(capHeight: number, halfBicep: number): CapGeometry {
     front,
     backLength: total(back),
     frontLength: total(front),
+    shape: fit.shape,
   }
 }
 
-/** Cap height whose cap length equals `target` (bisection; cap length grows with the height). */
-function solveCapHeight(target: number, halfBicep: number, guess: number): number {
+/** Chord-length cap (no search): only used to estimate the size before fitting the fair shape. */
+const CHORD_SHAPE: FairCurveShape = { speeds: [1, 1, 1, 1], knots: [1, 1, 1, 1, 1, 1, 1, 1] }
+
+/**
+ * Cap whose length equals `target`. The height is first solved with a plain chord-length cap,
+ * the fair shape fitted at that height, and the height solved again with the shape fixed, so the
+ * final cap is fair AND exactly the target length (bisection; cap length grows with the height).
+ */
+function solveCap(target: number, halfBicep: number, guess: number): CapGeometry {
+  const h1 = solveCapHeight(target, halfBicep, guess, CHORD_SHAPE)
+  const shape = capGeometry(h1, halfBicep).shape
+  return capGeometry(solveCapHeight(target, halfBicep, h1, shape), halfBicep, shape)
+}
+
+function solveCapHeight(
+  target: number,
+  halfBicep: number,
+  guess: number,
+  shape: FairCurveShape,
+): number {
   const f = (h: number) => {
-    const g = capGeometry(h, halfBicep)
+    const g = capGeometry(h, halfBicep, shape)
     return g.backLength + g.frontLength - target
   }
   let lo = guess * 0.4
@@ -215,8 +249,8 @@ export function draftWomenSleeve(
   // ---- 1–2. Sleeve length, bicep and cap height (trued to the armhole + embebido) ----
   const halfBicep = (m.upperArm + o.bicepEase) / 2
   const methodCapHeight = (arm.back + arm.front) / WOMEN_SLEEVE_CONSTANTS.capHeightDivisor
-  const capHeight = solveCapHeight(arm.back + arm.front + o.capEase, halfBicep, methodCapHeight)
-  const g = capGeometry(capHeight, halfBicep)
+  const g = solveCap(arm.back + arm.front + o.capEase, halfBicep, methodCapHeight)
+  const capHeight = g.points.B2.y
   for (const [name, p] of Object.entries(g.points)) P(name, p)
   P('B1', vec(0, m.sleeveLength))
 

@@ -173,7 +173,7 @@ test('Guardar persists the operations with the project', async ({ page }) => {
   await page.getByTestId('piece-editor').getByRole('button', { name: 'Duplicar' }).click()
   await expect(page.getByTestId('piece-outline')).toHaveCount(3)
   await page.getByRole('button', { name: 'Guardar', exact: true }).click()
-  await expect(page.getByRole('button', { name: 'Guardado' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Guardado', exact: true })).toBeVisible()
   await page.reload()
   await page.getByRole('button', { name: 'Piezas', exact: true }).click()
   await expect(page.getByTestId('piece-outline')).toHaveCount(3)

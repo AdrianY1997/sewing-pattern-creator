@@ -27,11 +27,13 @@ import {
   reverseBezier,
   scale,
   segmentLength,
-  smoothWithTangents,
+  cubic,
+  fitFairCurve,
   sub,
   vec,
   type CubicBezier,
   type Draft,
+  type FairCurveShape,
   type PieceMark,
   type Vec,
 } from '../core'
@@ -130,13 +132,20 @@ interface CapGeometry {
   readonly backLength: number
   readonly frontLength: number
   readonly halfBicep: number
+  /** Shape of the fair cap curve (reused while solving for the diagonal). */
+  readonly shape: FairCurveShape
 }
 
 const RIGHT = vec(1, 0)
 const total = (cs: readonly CubicBezier[]) => cs.reduce((s, c) => s + segmentLength(c), 0)
 
-/** Cap points and curves for a diagonal length `diag` and cap height `h` (steps 2–5). */
-function capGeometry(diag: number, h: number): CapGeometry {
+/**
+ * Cap points and curves for a diagonal length `diag` and cap height `h` (steps 2–5). The cap is
+ * ONE fair curve D → A → E through the method's points: horizontal at the underarm points and at
+ * the top, curvature continuous everywhere (also at A), and one inflection on each half. `shape`
+ * fixes the curve's shape parameters instead of fitting them.
+ */
+function capGeometry(diag: number, h: number, shape?: FairCurveShape): CapGeometry {
   const C = MEN_SLEEVE_CONSTANTS
   const halfBicep = Math.sqrt(diag * diag - h * h)
   const A = vec(0, 0)
@@ -161,9 +170,14 @@ function capGeometry(diag: number, h: number): CapGeometry {
   const K = add(K0, scale(outFront, fo1))
   const L = add(L0, scale(outFront, fo2))
   const M = add(M0, scale(outFront, fo3))
-  // Cap: horizontal at the underarm points and at the top.
-  const back = smoothWithTangents([D, J, Ib, H, A], RIGHT, RIGHT, 'sleeve.capBack')
-  const front = smoothWithTangents([A, M, L, K, E], RIGHT, RIGHT, 'sleeve.capFront')
+  const fit = fitFairCurve([D, J, Ib, H, A, M, L, K, E], RIGHT, RIGHT, {
+    tangents: { 4: RIGHT },
+    inflections: 2,
+    shape,
+  })
+  const rename = (c: CubicBezier, id: string) => cubic(id, c.p0, c.p1, c.p2, c.p3)
+  const back = fit.curves.slice(0, 4).map((c, i) => rename(c, MEN_SLEEVE_SEAMS.capBack[i]))
+  const front = fit.curves.slice(4).map((c, i) => rename(c, MEN_SLEEVE_SEAMS.capFront[i]))
   return {
     points: { A, B, D, E, H0, H, I: Ib, J0, J, K0, K, L, M0, M },
     back,
@@ -171,13 +185,28 @@ function capGeometry(diag: number, h: number): CapGeometry {
     backLength: total(back),
     frontLength: total(front),
     halfBicep,
+    shape: fit.shape,
   }
 }
 
+/** Chord-length cap (no search): only used to estimate the size before fitting the fair shape. */
+const CHORD_SHAPE: FairCurveShape = { speeds: [1, 1, 1, 1], knots: [1, 1, 1, 1, 1, 1, 1, 1] }
+
+/**
+ * Cap whose length equals `target`: the diagonal is first solved with a plain chord-length cap,
+ * the fair shape fitted there, and the diagonal solved again with the shape fixed, so the final
+ * cap is fair AND exactly the target length.
+ */
+function solveCap(target: number, h: number): CapGeometry {
+  const d1 = solveDiagonal(target, h, CHORD_SHAPE)
+  const shape = capGeometry(d1, h).shape
+  return capGeometry(solveDiagonal(target, h, shape), h, shape)
+}
+
 /** Diagonal length whose cap length equals `target` (bisection; the cap grows with it). */
-function solveDiagonal(target: number, h: number): number {
+function solveDiagonal(target: number, h: number, shape: FairCurveShape): number {
   const f = (d: number) => {
-    const g = capGeometry(d, h)
+    const g = capGeometry(d, h, shape)
     return g.backLength + g.frontLength - target
   }
   let lo = h * 1.2
@@ -215,8 +244,7 @@ export function draftMenSleeve(
   // ---- 1–5. Cap height = PS; diagonals (method: armhole/2) trued to armhole + embebido ----
   const armhole = arm.back + arm.front
   const capHeight = arm.depth
-  const diag = solveDiagonal(armhole + o.capEase, capHeight)
-  const g = capGeometry(diag, capHeight)
+  const g = solveCap(armhole + o.capEase, capHeight)
   for (const [name, p] of Object.entries(g.points)) P(name, p)
 
   // ---- 6. Length and hem (EASD "ancho bocamanga" is the half hem width) ----

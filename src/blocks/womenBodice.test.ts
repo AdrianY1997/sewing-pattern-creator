@@ -132,8 +132,8 @@ describe('draftWomenBodice — seams (size 10)', () => {
   })
 
   it('reports plausible armhole lengths', () => {
-    expect(r.armhole.back).toBeCloseTo(203.2, 0)
-    expect(r.armhole.front).toBeCloseTo(224.8, 0)
+    expect(r.armhole.back).toBeCloseTo(203.42, 1)
+    expect(r.armhole.front).toBeCloseTo(224.84, 1)
   })
 })
 

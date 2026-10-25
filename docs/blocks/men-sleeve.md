@@ -16,8 +16,8 @@ La manga se monta en el cuerpo base de `docs/blocks/men-bodice.md`: las longitud
 | Método / origen | Tabla `es-men-easd` o cuerpo | Talla 48 (mm) |
 |---|---|---|
 | Profundidad de sisa (PS) del cuerpo = altura de copa | `measureMenBodice(...).armholeDepth` | 115,48 |
-| Recorrido de la sisa de la camisa | sisa espalda + delantera (`back.armhole.*`, `front.armhole.*`) | 291,70 + 265,73 = 557,43 |
-| Sisa bajo los piquetes (S → X, T → Y) | `back.armhole.1 + .2`, `front.armhole.1 + .2` | 132,70 / 137,94 |
+| Recorrido de la sisa de la camisa | sisa espalda + delantera (`back.armhole.*`, `front.armhole.*`) | 291,92 + 266,18 = 558,10 |
+| Sisa bajo los piquetes (S → X, T → Y) | `back.armhole.1 + .2`, `front.armhole.1 + .2` | 132,84 / 138,45 |
 | Largo total de manga | Largo de manga (`sleeveLength`) | 610 |
 | Ancho del bajo | Ancho bocamanga, media medida (`halfCuffWidth`) | 140 |
 | (comprobación) | Contorno de brazo (`upperArm`, estimado §3.4.2) | 320 |
@@ -60,24 +60,24 @@ Convenciones: origen en A (cima de la copa, "la parte más alta de la cabeza sit
 
 ## 5. Valores calculados a mano, talla 48 (mm)
 
-PS = 115,48; sisa = 557,43; radio (diagonal) ajustado d = 278,85 (método: 557,43/2 = 278,72).
+PS = 115,48; sisa = 558,10; radio (diagonal) ajustado d = 279,02 (método: 558,10/2 = 279,05).
 
 | Punto | Cálculo | Valor (x, y) |
 |---|---|---|
 | B | PS | (0, 115,48) |
-| D, E | ±√(278,85² − 115,48²) = ±√64 424 | (∓253,82, 115,48) |
-| u (A→D) | (−253,82, 115,48)/278,85 | (−0,91023, 0,41412) |
-| H | 92,95·u + 15·(−0,41412, −0,91023) | (−90,82, 24,84) |
-| I | 185,90·u | (−169,21, 76,98) |
-| J | 232,38·u − 5·(−0,41412, −0,91023) | (−209,45, 100,78) |
-| K | E + 69,71·(−0,91023, −0,41412) − 12·(0,41412, −0,91023) | (185,39, 97,53) |
-| L | E + 139,43·(−0,91023, −0,41412) | (126,91, 57,74) |
-| M | E + 209,14·(−0,91023, −0,41412) + 12·(0,41412, −0,91023) | (68,42, 17,95) |
+| D, E | ±√(279,02² − 115,48²) = ±√64 518 | (∓254,00, 115,48) |
+| u (A→D) | (−254,00, 115,48)/279,02 | (−0,91034, 0,41387) |
+| H | 93,01·u + 15·(−0,41387, −0,91034) | (−90,88, 24,84) |
+| I | 186,01·u | (−169,34, 76,98) |
+| J | 232,52·u − 5·(−0,41387, −0,91034) | (−209,60, 100,78) |
+| K | E + 69,76·(−0,91034, −0,41387) − 12·(0,41387, −0,91034) | (185,54, 97,53) |
+| L | E + 139,51·(−0,91034, −0,41387) | (127,00, 57,74) |
+| M | E + 209,27·(−0,91034, −0,41387) + 12·(0,41387, −0,91034) | (68,47, 17,95) |
 | C, F, G | 610; ±140 | (0, 610), (∓140, 610) |
-| N | mitad de D–F (−196,91, 362,74) + 10·(0,97452, −0,22431) | (−187,16, 360,50) |
-| O | simétrico de N | (187,16, 360,50) |
+| N | mitad de D–F (−197,00, 362,74) + 10·(0,97444, −0,22468) | (−187,26, 360,49) |
+| O | simétrico de N | (187,26, 360,49) |
 
-Resultados talla 48: copa 567,43 mm (espalda 283,12 + delantero 284,31) = sisa 557,43 + embebido 10; ancho de manga 507,64 mm (brazo 320 + 187,6 de holgura); bajo 280 mm; costuras bajo brazo 507,90 = 507,90 mm; piquetes a 135,20 mm de D (P), 140,44 mm de E (Q) y 296,70 mm de D (R, hombro).
+Resultados talla 48: copa 568,10 mm (espalda 283,41 + delantero 284,69) = sisa 558,10 + embebido 10; ancho de manga 508,01 mm (brazo 320 + 188,0 de holgura); bajo 280 mm; costuras bajo brazo 507,94 = 507,94 mm; piquetes a 135,34 mm de D (P), 140,95 mm de E (Q) y 296,92 mm de D (R, hombro).
 
 ## 6. Decisiones y desviaciones
 
@@ -85,5 +85,5 @@ Resultados talla 48: copa 567,43 mm (espalda 283,12 + delantero 284,31) = sisa 5
 2. **Largo y bajo**: el método descuenta 6 cm de puño del largo y quita P/10 a cada lado del bajo, dejando tela para los pliegues del puño (34,2 cm en la 48). La manga base no lleva puño ni pliegues: llega al largo de manga EASD y el bajo mide 2 × ancho bocamanga EASD (28 cm en la 48). Tampoco se redondea el bajo 1 cm en el RH, que pertenece a la manga con puño.
 3. **Manga de camisa como base de chaqueta**: la copa baja (PS ≈ 11,5 cm) y el bíceps ancho (holgura ≈ 19 cm) son los de la camisa clásica. Para chaqueta habría que subir la copa y aumentar el embebido (2–4 cm), lo que queda para una transformación posterior.
 4. **Piquetes**: el método no los sitúa. Se ponen como en la manga de mujer: un cuarto del embebido bajo cada piquete y la mitad repartida a los lados del piquete de hombro, que se cose a la costura de hombro.
-5. **Curvas**: la copa es una cadena de Bézier por los puntos de las cotas, horizontal en la cima y en el bajo de la copa. Las costuras bajo brazo son Catmull–Rom por D, N, F (y E, O, G), así que miden lo mismo por simetría.
-6. **Contorno de brazo**: es una medida "estimada (sin fuente)" de §3.4.2. Solo se usa para comprobar la holgura mínima del bíceps (6 cm), que se cumple con margen en todas las tallas (166 mm en la 40, 207 mm en la 54).
+5. **Curvas**: la copa entera D → A → E es una curva justa (`fairCurve`) por los puntos de las cotas, horizontal en la cima y en el bajo de la copa, con curvatura continua también en A y **una sola inflexión en cada mitad**; sus parámetros de forma se ajustan, se resuelve la diagonal, se reajustan y se vuelve a resolver (la copa mide exactamente sisa + embebido). La versión anterior (tangentes Catmull–Rom por mitades) tenía 8 inflexiones y saltos de curvatura del 200 %. Las costuras bajo brazo son Catmull–Rom por D, N, F (y E, O, G), así que miden lo mismo por simetría.
+6. **Contorno de brazo**: es una medida "estimada (sin fuente)" de §3.4.2. Solo se usa para comprobar la holgura mínima del bíceps (6 cm), que se cumple con margen en todas las tallas (167 mm en la 40, 207 mm en la 54).

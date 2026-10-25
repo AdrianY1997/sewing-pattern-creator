@@ -66,9 +66,9 @@ describe('draftMenBodice — size 48 key points (docs/blocks/men-bodice.md §5)'
     Z: [280.62, 39.04],
     Z1: [280.62, 270],
     A2: [0, 72],
-    A3: [218.27, 72],
+    A3: [218.09, 72],
     A4: [490.12, 21.83],
-    A5: [340.39, 78.39],
+    A5: [340.32, 78.42],
   }
   for (const [name, [x, y]] of Object.entries(expected))
     it(`${name} = (${x}, ${y}) mm`, () => {
@@ -128,8 +128,8 @@ describe('draftMenBodice — seams and widths (size 48)', () => {
   })
 
   it('reports the armhole lengths and the profundidad de sisa (PS)', () => {
-    expect(r.armhole.back).toBeCloseTo(291.7, 0)
-    expect(r.armhole.front).toBeCloseTo(265.73, 0)
+    expect(r.armhole.back).toBeCloseTo(291.92, 1)
+    expect(r.armhole.front).toBeCloseTo(266.18, 1)
     expect(r.armholeDepth).toBeCloseTo(115.48, 1)
   })
 

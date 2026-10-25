@@ -131,7 +131,7 @@ describe('Trazar across several edges (replaceSegmentChain) and Ajuste automáti
   it('auto-aligned French curve over the whole front armhole: one curve, Sisa, size 16', () => {
     const curve = existingCurveBetween(sources.outlines, sources.segments, A26, A27)!
     const fit = autoAlignRuler(french, A26, A27, { curve })!
-    expect(fit.curveDeviation).toBeLessThan(6.1)
+    expect(fit.curveDeviation).toBeLessThan(6.6)
     for (const [p, q] of [
       [A26, A27],
       [A27, A26],

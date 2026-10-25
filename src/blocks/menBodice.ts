@@ -265,7 +265,7 @@ export function draftMenBodice(
   b.line('back.cb', 'A', 'E')
   b.curveWithTangents('back.neck', 'A', right, 'M', perpToward(backShoulderDir, vec(0, -1)))
   b.line('back.shoulder', 'M', 'Q')
-  const backArmhole = b.smoothWithTangents(
+  const backArmhole = b.fairCurve(
     'back.armhole',
     ['Q', 'S', 'U', 'X'],
     perpToward(backShoulderDir, down),
@@ -287,7 +287,7 @@ export function draftMenBodice(
     right,
   )
   b.line('front.shoulder', 'N', 'R')
-  const frontArmhole = b.smoothWithTangents(
+  const frontArmhole = b.fairCurve(
     'front.armhole',
     ['R', 'T', 'V', 'Y'],
     perpToward(frontShoulderDir, down),

@@ -17,10 +17,10 @@ La manga se monta en el cuerpo base de `docs/blocks/women-bodice.md`: las longit
 | Contorno de brazo | `upperArm` | 300 |
 | Largo de manga (del final del hombro a la muñeca, brazo algo doblado) | `sleeveLength` | 610 |
 | Contorno de muñeca | `wrist` (solo para comprobar la holgura del puño) | 160 |
-| Sisa de espalda (curva A11–A16) | `draftWomenBodice` → `back.armhole.*` | 203,19 |
-| Sisa delantera (curva A26–A27) | `draftWomenBodice` → `front.armhole.*` | 224,81 |
-| Sisa de espalda bajo el punto de control (A20–A16, segmentos 2 + 3) | `back.armhole.1 + .2` | 103,81 |
-| Sisa delantera bajo el punto de control (A29–A27, segmentos 2 + 3) | `front.armhole.1 + .2` | 100,09 |
+| Sisa de espalda (curva A11–A16) | `draftWomenBodice` → `back.armhole.*` | 203,42 |
+| Sisa delantera (curva A26–A27) | `draftWomenBodice` → `front.armhole.*` | 224,84 |
+| Sisa de espalda bajo el punto de control (A20–A16, segmentos 2 + 3) | `back.armhole.1 + .2` | 103,78 |
+| Sisa delantera bajo el punto de control (A29–A27, segmentos 2 + 3) | `front.armhole.1 + .2` | 99,93 |
 
 ## 3. Opciones y holguras (valores por defecto)
 
@@ -66,36 +66,36 @@ Convenciones: origen en B (cima de la copa), x a la derecha, y hacia **abajo**. 
 
 ## 5. Valores calculados a mano, talla 10 (mm)
 
-Sisas del cuerpo talla 10: 203,19 + 224,81 = 428,00. Altura de copa del método 428/3 = 142,67 (embebido libre 38,5). Con embebido 15 la copa debe medir 443,00 y la bisección da **h = 123,74**.
-Medio ancho de manga = (300 + 40)/2 = 170. |B4 B| = |B B3| = √(170² + 123,74²) = 210,27; dirección B4→B u = (0,8085, −0,5885); normal exterior espalda (−0,5885, −0,8085), delantero (0,5885, −0,8085).
+Sisas del cuerpo talla 10: 203,42 + 224,84 = 428,26. Altura de copa del método 428,26/3 = 142,75 (embebido libre 39,4). Con embebido 15 la copa debe medir 443,26 y la bisección da **h = 123,31**.
+Medio ancho de manga = (300 + 40)/2 = 170. |B4 B| = |B B3| = √(170² + 123,31²) = 210,01; dirección B4→B u = (0,8095, −0,5871); normal exterior espalda (−0,5871, −0,8095), delantero (0,5871, −0,8095).
 
 | Punto | Cálculo | Valor (x, y) |
 |---|---|---|
 | B1 | largo de manga 610 | (0, 610) |
-| B2 | h | (0, 123,74) |
-| B3 / B4 | ±170 | (170, 123,74) / (−170, 123,74) |
+| B2 | h | (0, 123,31) |
+| B3 / B4 | ±170 | (170, 123,31) / (−170, 123,31) |
 | B5 / B6 | ±(170 − 50) | (120, 610) / (−120, 610) |
-| B7 | B4 + 70,09·u | (−113,33, 82,49) |
-| B8 | B4 + 140,18·u | (−56,67, 41,25) |
-| B9 | mitad B4–B7 | (−141,67, 103,12) |
-| B10 | B + (105,13 + 20)·(0,8085, 0,5885) | (101,17, 73,64) |
-| B11 / B12 | mitades B–B10 / B10–B3 | (50,59, 36,82) / (135,59, 98,69) |
-| B13 | B8 + 20·(−0,5885, −0,8085) | (−68,44, 25,08) |
-| B14 | B11 + 20·(0,5885, −0,8085) | (62,35, 20,65) |
-| B15 | B9 − 5·(−0,5885, −0,8085) | (−138,72, 107,16) |
-| B16 | B12 − 15·(0,5885, −0,8085) | (126,76, 110,82) |
-| B18 | copa a 203,19 desde B4 | (−15,57, 1,41) |
-| B19 | copa a 224,81 desde B3 | (−0,65, 0,00) |
-| B21 | copa a 203,19 + 7,5 = 210,69 desde B4 | (−8,14, 0,39) |
-| B20 | copa a 103,81 + 3,5 = 107,31 desde B4 | (−92,93, 53,14) |
-| B17 | copa a 100,09 + 3,5 = 103,59 desde B3 | (94,46, 63,37) |
+| B7 | B4 + 70,00·u | (−113,33, 82,21) |
+| B8 | B4 + 140,01·u | (−56,67, 41,10) |
+| B9 | mitad B4–B7 | (−141,67, 102,76) |
+| B10 | B + (105,01 + 20)·(0,8095, 0,5871) | (101,19, 73,40) |
+| B11 / B12 | mitades B–B10 / B10–B3 | (50,59, 36,70) / (135,59, 98,35) |
+| B13 | B8 + 20·(−0,5871, −0,8095) | (−68,41, 24,91) |
+| B14 | B11 + 20·(0,5871, −0,8095) | (62,34, 20,51) |
+| B15 | B9 − 5·(−0,5871, −0,8095) | (−138,73, 106,80) |
+| B16 | B12 − 15·(0,5871, −0,8095) | (126,79, 110,49) |
+| B18 | copa a 203,42 desde B4 | (−15,38, 1,15) |
+| B19 | copa a 224,84 desde B3 | (−0,44, 0,00) |
+| B21 | copa a 203,42 + 7,5 = 210,92 desde B4 | (−7,93, 0,31) |
+| B20 | copa a 103,78 + 3,5 = 107,28 desde B4 | (−91,92, 53,68) |
+| B17 | copa a 99,93 + 3,5 = 103,43 desde B3 | (95,68, 62,74) |
 
-Resultados talla 10 (por defecto): copa espalda 218,84 + copa delantero 224,16 = **443,00 mm = sisas 428,00 + embebido 15,00**. Desde B21: espalda 210,69 (sisa + 7,5) y delantero 232,31 (sisa + 7,5); bajo los piquetes 3,5 por lado, entre piquetes y hombro 4,0 por lado. Ancho de manga 340 (brazo + 40); puño 240 (muñeca + 80); costuras bajo brazo 488,82 = 488,82.
+Resultados talla 10 (por defecto): copa espalda 218,86 + copa delantero 224,40 = **443,26 mm = sisas 428,26 + embebido 15,00**. Desde B21: espalda 210,92 (sisa + 7,5) y delantero 232,34 (sisa + 7,5); bajo los piquetes 3,5 por lado, entre piquetes y hombro 4,0 por lado. Ancho de manga 340 (brazo + 40); puño 240 (muñeca + 80); costuras bajo brazo 489,25 = 489,25.
 
 ## 6. Decisiones y desviaciones
 
-1. **Embebido y altura de copa**: el método no da un embebido. Fija la altura de copa (sisa/3) y acepta lo que sale: en su ejemplo (talla 38 española) 1,5 cm en la espalda y 2,7 cm en el delantero, 4,2 cm en total, "una diferencia absolutamente normal". Con la tabla colombiana y el cuerpo base de la app, sisa/3 da un embebido de 28,9 / 33,6 / 38,5 / 43,4 / 48,4 / 53,5 mm (tallas 6…16), que crece con la talla y es mucho para una manga base de tejido plano. Aquí el embebido es un parámetro: **1,5 cm por defecto** (valor de la especificación cuando el método no lo da), con 3 cm y 4,2 cm (el del ejemplo del método) como opciones del editor, y la **altura de copa se ajusta** por bisección para cumplirlo exactamente. Talla 10: h = 123,7 mm con 1,5 cm, 136,0 con 3 cm, 145,4 con 4,2 cm (método: 142,7).
-2. **Curvas**: Seamly2D usa un spline interactivo ajustado a ojo. Aquí es una cadena de Bézier que pasa por los mismos puntos (B4, B15, B7, B13, B y B, B14, B10, B16, B3) con tangentes Catmull–Rom en los puntos interiores y horizontal en B4, B y B3, como pide el vídeo (180° / 0°).
+1. **Embebido y altura de copa**: el método no da un embebido. Fija la altura de copa (sisa/3) y acepta lo que sale: en su ejemplo (talla 38 española) 1,5 cm en la espalda y 2,7 cm en el delantero, 4,2 cm en total, "una diferencia absolutamente normal". Con la tabla colombiana y el cuerpo base de la app, sisa/3 da un embebido de 29,9 / 34,6 / 39,4 / 44,4 / 49,1 / 54,2 mm (tallas 6…16), que crece con la talla y es mucho para una manga base de tejido plano. Aquí el embebido es un parámetro: **1,5 cm por defecto** (valor de la especificación cuando el método no lo da), con 3 cm y 4,2 cm (el del ejemplo del método) como opciones del editor, y la **altura de copa se ajusta** por bisección para cumplirlo exactamente. Talla 10: h = 123,3 mm con 1,5 cm, 135,4 con 3 cm, 144,8 con 4,2 cm (método: 142,8).
+2. **Curvas**: Seamly2D usa un spline interactivo ajustado a ojo. Aquí la copa entera B4 → B → B3 es una curva justa (`fairCurve`) que pasa exactamente por los mismos puntos (B4, B15, B7, B13, B, B14, B10, B16, B3), horizontal en B4, B y B3 como pide el vídeo (180° / 0°), con curvatura continua también en B (salto < 1 %) y **una sola inflexión en cada mitad** (el hueco bajo el piquete que pasa a la copa). Sus parámetros de forma se ajustan a la altura del método, se resuelve la altura, se reajustan y se vuelve a resolver, así que la copa es justa y mide exactamente sisa + embebido. La versión anterior (tangentes Catmull–Rom por mitades) tenía 6 inflexiones y saltos de curvatura de hasta el 194 %.
 3. **Nombres de puntos**: en el vídeo el punto delantero de "sisa delantera desde B3" se llama primero B17, se borra y se recrea, y el piquete delantero acaba llamándose B17. Aquí: B17 = piquete delantero, B18/B19 = fin de la sisa de espalda/delantera sobre la copa, B20 = piquete de espalda, B21 = piquete de hombro (como en la miniatura). Los puntos auxiliares B22–B25 de la captura (cruce de la curva con la diagonal y extremos del hilo) no se trazan porque no cambian la pieza.
 4. **Piquetes**: en la miniatura del vídeo el piquete de B17 (delantero) parece doble y el de B20 (espalda) sencillo. Aquí se usa la convención industrial habitual: **delantero sencillo, espalda doble**, y un piquete en la cima de la copa (B21).
 5. **Hilo**: el método desplaza el centro de la manga a B19 (aquí B21) "para que la manga quede recta". El hilo se traza vertical por B21.

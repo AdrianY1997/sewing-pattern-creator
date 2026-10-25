@@ -162,7 +162,7 @@ W = 920/2 + 10 = 470; ancho de escote = 380/6 + 5 = 68,33; A9 = 920/6 + 60 = 213
 | A45, A51 | 625 − 50 | y = 575 |
 | A54 / A55 | e = (480 + 10 − 470)/2 = 10 | (243,5, 625) / (223,5, 625) |
 
-Resultados talla 10 (por defecto, hasta la cadera): sisa espalda 203,2 mm, sisa delantero 224,8 mm; hombros 120 = 120 mm; costados 418,5 mm ambos (diferencia 0,03 mm, sin contar la pinza); cintura por cuarto después de pinzas 175 mm; pinza de busto 20 mm en el costado; pinza de cintura delantera 31,5 mm y de espalda 28,5 mm.
+Resultados talla 10 (por defecto, hasta la cadera): sisa espalda 203,4 mm, sisa delantero 224,8 mm; hombros 120 = 120 mm; costados 418,5 mm ambos (diferencia 0,03 mm, sin contar la pinza); cintura por cuarto después de pinzas 175 mm; pinza de busto 20 mm en el costado; pinza de cintura delantera 31,5 mm y de espalda 28,5 mm.
 
 ## 6. Decisiones y desviaciones
 
@@ -170,7 +170,7 @@ Resultados talla 10 (por defecto, hasta la cadera): sisa espalda 203,2 mm, sisa 
 2. **Reparto de la cintura**: en la figura la pinza de espalda (30 % del exceso) es mayor que la delantera (20 %) y los cuartos no son iguales. Aquí cada cuarto mide exactamente cintura/4 + holgura/4 y los dos costados entran lo mismo (para que las costuras de costado midan igual), así que la pinza delantera (31,5 mm) sale algo mayor que la de espalda (28,5 mm).
 3. **Cadera**: la extensión se reparte por igual a los dos lados de A18 (como en la figura), así que los cuartos de cadera no son idénticos (243,5 / 246,5 mm en la talla 10) pero la suma es cadera/2 + holgura/2.
 4. **Escotes**: la fuente usa una "curva simple" con esquina de control (A8, A25), vertical en el punto cuello-hombro. Aquí el escote sale perpendicular al centro espalda/delantero y llega **perpendicular al hombro**, para que al unir hombros el escote no haga pico (requisito SPEC §5).
-5. **Sisas**: Seamly2D usa un spline interactivo; aquí es una cadena de Bézier que pasa por los mismos puntos de control (A11, A20, A21, A16 y A26, A29, A30, A27) con tangentes Catmull–Rom en los puntos interiores, perpendicular al hombro arriba y perpendicular al costado abajo.
+5. **Sisas**: Seamly2D usa un spline interactivo; aquí es una curva justa (`fairCurve`): G2 (curvatura continua) en todos los puntos, sin inflexión y con la curvatura subiendo y bajando una sola vez, como un trazo de pistola. Es un spline cúbico por los puntos cuyas velocidades en los extremos y espaciado de nudos se eligen minimizando ∫(dκ/ds)² ds, que pasa exactamente por los mismos puntos de control (A11, A20, A21, A16 y A26, A29, A30, A27), perpendicular al hombro arriba y perpendicular al costado abajo. La versión anterior (tangentes Catmull–Rom) tenía una inflexión a 7 mm del costado en la sisa delantera (tallas 6–14) y dos en la de espalda (12–16), y saltos de curvatura de hasta el 114 % entre tramos. Los escotes son un solo Bézier y ya eran justos.
 6. **Erratas de la fuente**: la sisa delantera cita "A26, A32, A29, A30, A27"; A32 es un punto de cintura y no puede estar en la sisa, se omite. A31 no aparece en los pasos publicados. A24 no indica su línea: se toma en el centro delantero bajo A22 (cuadra con la figura). A39 (marca en el costado inferior, sobre la línea de doblez de la pinza) no se traza porque no cambia el contorno.
 7. **A16**: "LongitudActual/2 − 0,7" se mide desde A12 (primer punto), lo que da el desplazamiento hacia la espalda que muestra la figura.
 8. **Holguras de cintura y cadera**: no legibles; se eligen 2 cm en total (§3). La holgura de pecho es la del método (+1 cm por mitad).

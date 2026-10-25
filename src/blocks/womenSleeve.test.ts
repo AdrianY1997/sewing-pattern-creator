@@ -35,34 +35,34 @@ const sinAngle = (a: Vec, b: Vec) => Math.abs(cross(normalize(a), normalize(b)))
 
 describe('draftWomenSleeve — size 10 key points (docs/blocks/women-sleeve.md §5)', () => {
   it('uses the bodice armholes of the same size', () => {
-    expect(arm10.back).toBeCloseTo(203.19, 1)
-    expect(arm10.front).toBeCloseTo(224.81, 1)
-    expect(arm10.backBelowNotch).toBeCloseTo(103.81, 1)
-    expect(arm10.frontBelowNotch).toBeCloseTo(100.09, 1)
+    expect(arm10.back).toBeCloseTo(203.42, 1)
+    expect(arm10.front).toBeCloseTo(224.84, 1)
+    expect(arm10.backBelowNotch).toBeCloseTo(103.78, 1)
+    expect(arm10.frontBelowNotch).toBeCloseTo(99.93, 1)
   })
 
   const expected: Record<string, [number, number]> = {
     B: [0, 0],
     B1: [0, 610],
-    B2: [0, 123.74],
-    B3: [170, 123.74],
-    B4: [-170, 123.74],
+    B2: [0, 123.31],
+    B3: [170, 123.31],
+    B4: [-170, 123.31],
     B5: [120, 610],
     B6: [-120, 610],
-    B7: [-113.33, 82.49],
-    B8: [-56.67, 41.25],
-    B9: [-141.67, 103.12],
-    B10: [101.17, 73.64],
-    B11: [50.59, 36.82],
-    B12: [135.59, 98.69],
-    B13: [-68.44, 25.08],
-    B14: [62.35, 20.65],
-    B15: [-138.72, 107.16],
-    B16: [126.76, 110.82],
-    B17: [94.46, 63.37],
-    B18: [-15.57, 1.41],
-    B20: [-92.93, 53.14],
-    B21: [-8.14, 0.39],
+    B7: [-113.33, 82.21],
+    B8: [-56.67, 41.1],
+    B9: [-141.67, 102.76],
+    B10: [101.19, 73.4],
+    B11: [50.59, 36.7],
+    B12: [135.59, 98.35],
+    B13: [-68.41, 24.91],
+    B14: [62.34, 20.51],
+    B15: [-138.73, 106.8],
+    B16: [126.79, 110.49],
+    B17: [95.68, 62.74],
+    B18: [-15.38, 1.15],
+    B20: [-91.92, 53.68],
+    B21: [-7.93, 0.31],
   }
   for (const [name, [x, y]] of Object.entries(expected))
     it(`${name} = (${x}, ${y}) mm`, () => {
@@ -73,9 +73,9 @@ describe('draftWomenSleeve — size 10 key points (docs/blocks/women-sleeve.md �
     })
 
   it('cap = armholes + 1.5 cm embebido, split evenly at the shoulder notch', () => {
-    expect(r10.cap.total).toBeCloseTo(203.19 + 224.81 + 15, 1)
-    expect(r10.cap.back).toBeCloseTo(218.84, 1)
-    expect(r10.cap.front).toBeCloseTo(224.16, 1)
+    expect(r10.cap.total).toBeCloseTo(203.42 + 224.84 + 15, 1)
+    expect(r10.cap.back).toBeCloseTo(218.86, 1)
+    expect(r10.cap.front).toBeCloseTo(224.4, 1)
     expect(r10.notches.shoulder).toBeCloseTo(arm10.back + 7.5, 1)
     expect(r10.cap.total - r10.notches.shoulder).toBeCloseTo(arm10.front + 7.5, 1)
   })
@@ -88,7 +88,7 @@ describe('draftWomenSleeve — size 10 key points (docs/blocks/women-sleeve.md �
   it('bicep, wrist and cap height', () => {
     expect(r10.bicepWidth).toBe(340)
     expect(r10.wristWidth).toBe(240)
-    expect(r10.capHeight).toBeCloseTo(123.74, 1)
+    expect(r10.capHeight).toBeCloseTo(123.31, 1)
   })
 })
 

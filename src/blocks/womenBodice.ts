@@ -327,7 +327,7 @@ export function draftWomenBodice(
   b.line('back.cb', 'A7', 'A2')
   b.curveWithTangents('back.neck', 'A7', right, 'A6', neg(perp(backShoulderDir)))
   b.line('back.shoulder', 'A6', 'A11')
-  b.smoothWithTangents(
+  b.fairCurve(
     'back.armhole',
     ['A11', 'A20', 'A21', 'A16'],
     perp(backShoulderDir),
@@ -344,7 +344,7 @@ export function draftWomenBodice(
   b.line('front.cf', 'A24', 'A4')
   b.curveWithTangents('front.neck', 'A23', neg(perp(frontShoulderDir)), 'A24', right)
   b.line('front.shoulder', 'A23', 'A26')
-  b.smoothWithTangents(
+  b.fairCurve(
     'front.armhole',
     ['A26', 'A29', 'A30', 'A27'],
     neg(perp(frontShoulderDir)),

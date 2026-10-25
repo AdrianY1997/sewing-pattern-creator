@@ -61,12 +61,14 @@ describe('autoAlignRuler', () => {
   })
 
   /**
-   * Women bodice, size 10: the whole front armhole (3 edges, A26 → A27, 227 mm). Its curvature has
-   * an inflection ~7 mm from the side seam, a peak (R ≈ 31 mm) 60 mm up and a jump from R ≈ 95 to
-   * R ≈ 900 mm where two of its Béziers meet: a ruler whose curvature only falls (the French curve:
-   * a clothoid R 25 → 400 mm, then an arc) cannot follow it within 1 mm. Best max deviations (trace
-   * vs the existing armhole, points ≤ 1 mm off the edge), measured by this search:
-   *   square 51.7 mm · french 5.9 mm · hip 46.5 mm · tailor 42.1 mm.
+   * Women bodice, size 10: the whole front armhole (3 edges, A26 → A27, 225 mm). It is a fair curve
+   * (no inflection, G2): R ≈ 360 mm from the shoulder for ~120 mm, tightening to R ≈ 33 mm round
+   * the underarm, then flattening again over the last ~55 mm to meet the side seam at a right
+   * angle. A ruler whose curvature only falls (the French curve: a clothoid R 25 → 400 mm, then an
+   * arc) can follow one side of that peak, not both, so one stroke cannot trace the whole armhole
+   * within 1 mm (two strokes can: A26 → A30 within 0.9 mm, A30 → A27 within 0.3 mm). Best max
+   * deviations (trace vs the existing armhole, points ≤ 1 mm off the edge), measured by this search:
+   *   square 51.7 mm · french 6.2 mm · hip 46.6 mm · tailor 42.2 mm.
    */
   it('women bodice front armhole: the best each ruler can do (the French curve is the best)', () => {
     const draft = draftBlock(WOMEN_BODICE_BLOCK, '10', {})
@@ -86,8 +88,8 @@ describe('autoAlignRuler', () => {
       expect(traceCurveDeviation(again, curve)).toBeCloseTo(fit.curveDeviation!, 6)
       expect(distance(again.beziers[0].p0, p0)).toBeLessThan(1e-6)
     }
-    expect(best.french).toBeGreaterThan(5.5)
-    expect(best.french).toBeLessThan(6.1)
+    expect(best.french).toBeGreaterThan(5.8)
+    expect(best.french).toBeLessThan(6.6)
     expect(best.square).toBeGreaterThan(50)
     expect(best.hip).toBeGreaterThan(40)
     expect(best.tailor).toBeGreaterThan(40)

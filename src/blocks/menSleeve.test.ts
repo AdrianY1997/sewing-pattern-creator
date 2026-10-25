@@ -17,8 +17,8 @@ const arm48 = menBodiceArmhole(m48)
 
 describe('draftMenSleeve — size 48 (docs/blocks/men-sleeve.md §5)', () => {
   it('reads the bodice armhole and its profundidad de sisa', () => {
-    expect(arm48.back).toBeCloseTo(291.7, 1)
-    expect(arm48.front).toBeCloseTo(265.73, 1)
+    expect(arm48.back).toBeCloseTo(291.92, 1)
+    expect(arm48.front).toBeCloseTo(266.18, 1)
     expect(arm48.depth).toBeCloseTo(115.48, 1)
   })
 
@@ -26,18 +26,18 @@ describe('draftMenSleeve — size 48 (docs/blocks/men-sleeve.md §5)', () => {
     A: [0, 0],
     B: [0, 115.48],
     C: [0, 610],
-    D: [-253.82, 115.48],
-    E: [253.82, 115.48],
+    D: [-254, 115.48],
+    E: [254, 115.48],
     F: [-140, 610],
     G: [140, 610],
-    H: [-90.82, 24.84],
-    I: [-169.21, 76.98],
-    J: [-209.45, 100.78],
-    K: [185.39, 97.53],
-    L: [126.91, 57.74],
-    M: [68.42, 17.95],
-    N: [-187.16, 360.5],
-    O: [187.16, 360.5],
+    H: [-90.88, 24.84],
+    I: [-169.34, 76.98],
+    J: [-209.6, 100.78],
+    K: [185.54, 97.53],
+    L: [127, 57.74],
+    M: [68.47, 17.95],
+    N: [-187.26, 360.49],
+    O: [187.26, 360.49],
   }
   for (const [name, [x, y]] of Object.entries(expected))
     it(`${name} = (${x}, ${y}) mm`, () => {
