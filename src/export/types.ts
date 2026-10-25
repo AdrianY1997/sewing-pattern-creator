@@ -174,6 +174,8 @@ export interface ExportOptions {
   readonly pagePerSize: boolean
   /** "Incluir trazo de construcción": the overlapping construction frame of the block. */
   readonly includeConstruction: boolean
+  /** Piece ids left out of the export (Exportar → Piezas); absent = every piece. */
+  readonly excludedPieces?: readonly string[]
 }
 
 export const DEFAULT_EXPORT_OPTIONS: ExportOptions = {

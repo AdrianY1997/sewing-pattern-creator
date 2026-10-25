@@ -50,6 +50,7 @@ export const getProject = async (id: string): Promise<ProjectRecord | null> => {
 /** Write a project (a new one or an update); refreshes its thumbnail and the index. */
 export const putProject = (p: ProjectRecord): Promise<ProjectRecord> =>
   serial(async () => {
+    if (deleted.has(p.id)) return p
     const record: ProjectRecord = {
       ...p,
       schemaVersion: SCHEMA_VERSION,
@@ -75,8 +76,13 @@ export const createProject = (
     updatedAt: now,
   })
 
-export const deleteProject = (id: string): Promise<void> =>
-  serial(async () => {
+/** Ids deleted in this session: a save still in flight must not bring them back. */
+const deleted = new Set<string>()
+export const isDeletedProject = (id: string): boolean => deleted.has(id)
+
+export const deleteProject = (id: string): Promise<void> => {
+  deleted.add(id)
+  return serial(async () => {
     await del(recordKey(id))
     await set(
       INDEX_KEY,
@@ -84,6 +90,7 @@ export const deleteProject = (id: string): Promise<void> =>
     )
     if ((await get(LAST_KEY)) === id) await del(LAST_KEY)
   })
+}
 
 export const renameProject = async (id: string, title: string): Promise<void> => {
   const p = await getProject(id)

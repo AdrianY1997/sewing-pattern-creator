@@ -19,7 +19,7 @@ Desde Exportar, botón "Enviar a a0-to-domestic". Envía el PDF de hoja única a
    ```
    El `ArrayBuffer` va como transferable.
 4. El receptor valida el origen contra su lista permitida y comprueba `type`, `version`, `mime === 'application/pdf'`, tamaño ≤ su límite y número de páginas ≤ su máximo. Ingresa el archivo por su flujo normal de carga y navega al editor del documento.
-5. El receptor responde `{ type: 'a0td:import-ack', requestId, ok: true, documentId }` o `{ ..., ok: false, error: { code, message } }`. Códigos: `ORIGIN_NOT_ALLOWED`, `UNSUPPORTED_VERSION`, `INVALID_PAYLOAD`, `TOO_LARGE`, `INGEST_FAILED`.
+5. El receptor responde `{ type: 'a0td:import-ack', requestId, ok: true, documentId }` o `{ ..., ok: false, error: { code, message } }`. Códigos: `ORIGIN_NOT_ALLOWED`, `UNSUPPORTED_VERSION`, `INVALID_PAYLOAD`, `TOO_LARGE`, `INGEST_FAILED`. El emisor añade dos códigos propios: `NO_ACK` (el receptor no confirma en 60 s tras el envío) y `PDF_FAILED` (no se pudo generar el PDF).
 
 ## Tiempos y reserva
 

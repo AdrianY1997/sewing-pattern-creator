@@ -9,7 +9,7 @@ import {
   DEFAULT_ADVANCED,
   sanitizeAdvanced,
   sanitizeLayers,
-  sanitizeOperations,
+  partitionOperations,
   type AdvancedOptions,
   type ProjectSnapshot,
   type ViewMode,
@@ -36,6 +36,11 @@ export interface ProjectRecord {
   readonly viewMode: ViewMode
   readonly createdAt: string
   readonly updatedAt: string
+  /**
+   * Stored operations that failed validation. They are not replayed but kept so that no edit is
+   * lost silently (the editor warns about them).
+   */
+  readonly quarantinedOps?: readonly unknown[]
   /** Small SVG of the pattern for the projects page (regenerated on every save). */
   readonly thumbnailSvg?: string
 }
@@ -101,7 +106,11 @@ export const sanitizeProject = (
   } catch {
     throw new ProjectImportError(`El proyecto usa un bloque desconocido («${raw.blockId}»).`)
   }
-  const operations = sanitizeOperations(raw.operations)
+  const { valid: operations, invalid } = partitionOperations(raw.operations)
+  const quarantinedOps = [
+    ...(Array.isArray(raw.quarantinedOps) ? (raw.quarantinedOps as unknown[]) : []),
+    ...invalid,
+  ]
   const given = Array.isArray(raw.operations) ? raw.operations.length : 0
   const str = (v: unknown, d: string) => (typeof v === 'string' ? v : d)
   const date = (v: unknown) => (typeof v === 'string' && !Number.isNaN(Date.parse(v)) ? v : now)
@@ -118,6 +127,7 @@ export const sanitizeProject = (
       blockOptions: sanitizeBlockOptions(block, isObject(raw.blockOptions) ? raw.blockOptions : {}),
       advanced: sanitizeAdvanced(raw.advanced ?? DEFAULT_ADVANCED),
       operations,
+      ...(quarantinedOps.length > 0 && { quarantinedOps }),
       notes: str(raw.notes, ''),
       layers: sanitizeLayers(raw.layers),
       viewMode: raw.viewMode === 'pieces' ? 'pieces' : 'trace',

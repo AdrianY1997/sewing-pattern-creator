@@ -263,3 +263,62 @@ describe('marks', () => {
     expect(front.marks.find((m) => m.kind === 'grainline')!.at).toEqual(mid)
   })
 })
+
+describe('cutOnFold mirrors the marks that follow geometry', () => {
+  it('anchored text and gather marks stay on the mirrored side after geometry ops', () => {
+    const base = ops(
+      { type: 'extractAll' },
+      { type: 'dartToGather', pieceId: 'back', dartId: 'back.dart' },
+      {
+        type: 'addTextMark',
+        pieceId: 'back',
+        text: 'Trasero',
+        at: { segmentId: 'back.hem', ratio: 0.5, offsetMm: 40 },
+      },
+      { type: 'cutOnFold', pieceId: 'back', foldSegmentId: 'back.cb' },
+    )
+    const textId = base[2].id
+    const draft = draftBlock(WOMEN_SKIRT_BLOCK, '10')
+    const first = replay(draft, base)
+    expect(first.issues).toEqual([])
+    const b0 = piece(first.pattern.pieces, 'back')
+    const t = b0.marks.find((m) => m.id === `${textId}~m`)!
+    expect((t.data?.anchor as { segmentId: string }).segmentId).toBe('back.hem~m')
+    const g = b0.marks.find((m) => m.kind === 'gather' && m.id.endsWith('~m'))!
+    expect(g.data?.segments).toEqual(
+      (
+        b0.marks.find((m) => m.kind === 'gather' && !m.id.endsWith('~m'))!.data!
+          .segments as string[]
+      ).map((id) => `${id}~m`),
+    )
+    // Geometry ops after the fold re-attach the marks: the mirrored ones must not jump sides.
+    const moved = replay(draft, [
+      ...base,
+      ...ops(
+        {
+          type: 'movePoint',
+          pieceId: 'back',
+          point: { segmentId: 'back.hem~m', end: 'start' },
+          deltaMm: { x: 5, y: 5 },
+        },
+        {
+          type: 'movePoint',
+          pieceId: 'back',
+          point: { segmentId: 'back.hem', end: 'end' },
+          deltaMm: { x: -5, y: 5 },
+        },
+      ),
+    ])
+    const b1 = piece(moved.pattern.pieces, 'back')
+    const after = b1.marks.find((m) => m.id === `${textId}~m`)!
+    const orig = b1.marks.find((m) => m.id === textId)!
+    const axis = stripMeta(
+      piece(replay(draft, base.slice(0, 1)).pattern.pieces, 'back').segments['back.cb'],
+    )
+    const side = (v: Vec) =>
+      Math.sign(
+        (axis.p1.x - axis.p0.x) * (v.y - axis.p0.y) - (axis.p1.y - axis.p0.y) * (v.x - axis.p0.x),
+      )
+    expect(side(after.at)).toBe(-side(orig.at))
+  })
+})

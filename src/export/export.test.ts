@@ -19,6 +19,7 @@ import {
   compilePage,
   DEFAULT_EXPORT_OPTIONS,
   exportBaseName,
+  exportPieces,
   exportPdf,
   exportSvgs,
   groupBox,
@@ -388,6 +389,25 @@ describe('every block exports', () => {
             MIN_PIECE_GAP,
           ),
         ).toBe(true)
+    }
+  })
+})
+
+describe('piece selection', () => {
+  it('leaves out excluded pieces, single and nested sizes', () => {
+    for (const sizes of [['M'], ['S', 'M']]) {
+      const src = source(blockSizes(getBlock('women-bodice')).slice(0, sizes.length))
+      const pieces = exportPieces(src)
+      expect(pieces.length).toBeGreaterThan(1)
+      const all = buildExportDocument(src, opts({ pagePerSize: false }))
+      const some = buildExportDocument(
+        src,
+        opts({ pagePerSize: false, excludedPieces: [pieces[0].id] }),
+      )
+      const ids = (d: typeof all) => d.pages.flatMap((p) => p.itemIds)
+      expect(ids(all).some((i) => i.startsWith(pieces[0].id))).toBe(true)
+      expect(ids(some).some((i) => i.startsWith(pieces[0].id))).toBe(false)
+      expect(ids(some).length).toBe(ids(all).length - 1)
     }
   })
 })

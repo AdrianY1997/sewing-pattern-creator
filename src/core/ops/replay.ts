@@ -327,17 +327,32 @@ function cutOnFold(pieces: readonly PatternPiece[], op: CutOnFoldOp): PatternPie
     ...half,
     ...[...half].reverse().map((r) => ({ segment: suffixed(r.segment), reversed: !r.reversed })),
   ]
+  // Segment ids of a mirrored mark follow the mirrored copies (run segments stay single).
+  const mirrorSegId = (id: string) => (segments[suffixed(id)] ? suffixed(id) : id)
+  const mirrorMarkData = (d: Record<string, unknown>): Record<string, unknown> => {
+    const out = { ...d }
+    if (typeof d.segment === 'string') out.segment = mirrorSegId(d.segment)
+    if (Array.isArray(d.segments))
+      out.segments = d.segments.map((x) => (typeof x === 'string' ? mirrorSegId(x) : x))
+    const a = d.anchor
+    if (typeof a === 'object' && a !== null) {
+      const an = a as Record<string, unknown>
+      out.anchor = {
+        ...an,
+        ...(typeof an.segmentId === 'string' && { segmentId: mirrorSegId(an.segmentId) }),
+        ...(typeof an.pointName === 'string' && { pointName: mirrorName(an.pointName) }),
+      }
+    }
+    return out
+  }
   const marks: PieceMark[] = [...piece.marks]
   for (const mk of piece.marks) {
     if (mk.kind === 'grainline' || onAxis(mk.at)) continue
-    const seg = mk.data?.segment
     marks.push({
       ...mk,
       id: suffixed(mk.id),
       at: m(mk.at),
-      ...(mk.data && {
-        data: typeof seg === 'string' ? { ...mk.data, segment: suffixed(seg) } : mk.data,
-      }),
+      ...(mk.data && { data: mirrorMarkData(mk.data) }),
     })
   }
   const points: Record<string, Vec> = { ...piece.points }

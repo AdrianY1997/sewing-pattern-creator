@@ -46,7 +46,12 @@ export const createAutosaver = <S>(opts: AutosaveOptions<S>): Autosaver => {
       try {
         await opts.save(value)
         baseline = value
-        status(timer === null ? 'saved' : 'pending')
+        // Edits made (or undone) while the save was in flight are compared against what was
+        // saved, not against what the store held before.
+        if (!paused && timer === null && opts.changed(baseline, opts.read())) {
+          status('pending')
+          timer = setTimeout(() => void run(), delay)
+        } else status(timer === null ? 'saved' : 'pending')
       } catch {
         status('error')
       }

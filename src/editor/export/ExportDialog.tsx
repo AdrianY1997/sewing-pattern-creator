@@ -15,8 +15,8 @@ import {
   buildExportDocument,
   exportBaseName,
   exportPdf,
+  exportPieces,
   exportSvgs,
-  sendToA0td,
   type A0tdStatus,
   type ExportDocument,
   type ExportLayer,
@@ -26,6 +26,7 @@ import {
 } from '../../export'
 import { useEditorStore } from '../store/editorStore'
 import { downloadFile, exportSource, orderedSizes } from './exportSource'
+import { clearFinishedTransfer, startA0tdTransfer, useA0tdTransfer } from './a0tdTransfer'
 import './exportDialog.css'
 
 export type ExportFormat = 'pdf-a0' | 'pdf-single' | 'svg'
@@ -171,18 +172,18 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
   const [includeConstruction, setIncludeConstruction] = useState(false)
   const [fileName, setFileName] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  const [status, setStatus] = useState<A0tdStatus | null>(null)
+  const status = useA0tdTransfer((s) => s.status)
+  const [excluded, setExcluded] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
   const dialogRef = useRef<HTMLDivElement>(null)
-  const stopSend = useRef<(() => void) | null>(null)
-
   useEffect(() => {
+    clearFinishedTransfer()
     dialogRef.current?.focus()
     const onKey = (ev: KeyboardEvent) => ev.key === 'Escape' && onClose()
     window.addEventListener('keydown', onKey)
     return () => {
       window.removeEventListener('keydown', onKey)
-      stopSend.current?.()
+      // The a0-to-domestic transfer keeps running (a0tdTransfer.ts) and reports with a toast.
     }
   }, [onClose])
 
@@ -196,8 +197,9 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
       cutLine,
       pagePerSize: multi && pagePerSize,
       includeConstruction,
+      ...(excluded.length > 0 && { excludedPieces: excluded }),
     }),
-    [format, svgSheets, layers, cutLine, multi, pagePerSize, includeConstruction],
+    [format, svgSheets, layers, cutLine, multi, pagePerSize, includeConstruction, excluded],
   )
   const baseName = fileName ?? exportBaseName(title, chosen)
   const source = useMemo(
@@ -207,6 +209,8 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
         : null,
     [blockId, blockOptions, operations, advanced, title, size, chosen],
   )
+  const pieces = useMemo(() => (source ? exportPieces(source) : []), [source])
+  const noPieces = pieces.length > 0 && pieces.every((p) => excluded.includes(p.id))
   const doc = useMemo(
     () => (source ? buildExportDocument(source, options) : null),
     [source, options],
@@ -214,10 +218,12 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
 
   const toggleSize = (id: string) =>
     setSizes((cur) => (cur.includes(id) ? cur.filter((s) => s !== id) : [...cur, id]))
+  const togglePiece = (id: string) =>
+    setExcluded((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]))
   const toggleLayer = (id: ExportLayer) => setLayers((cur) => ({ ...cur, [id]: !cur[id] }))
 
   const download = async () => {
-    if (!source) return
+    if (!source || noPieces) return
     setBusy(true)
     setError(null)
     try {
@@ -237,8 +243,7 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
 
   /** Must stay synchronous up to sendToA0td: window.open needs the click gesture. */
   const send = () => {
-    if (!source) return
-    stopSend.current?.()
+    if (!source || noPieces) return
     setError(null)
     const name = `${exportBaseName(title, chosen)}.pdf`
     // The single-sheet PDF, one page per size (integration contract).
@@ -247,9 +252,8 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
       name,
       bytes: (await exportPdf(source, singleOptions)).bytes,
     }))
-    stopSend.current = sendToA0td({
+    startA0tdTransfer({
       file,
-      onStatus: setStatus,
       download: (f) => downloadFile(f.bytes, f.name, 'application/pdf'),
     })
   }
@@ -368,6 +372,27 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
             </fieldset>
 
             <fieldset>
+              <legend>Piezas</legend>
+              <div className="export-layers" role="group" aria-label="Piezas a exportar">
+                {pieces.map((p) => (
+                  <label key={p.id}>
+                    <input
+                      type="checkbox"
+                      checked={!excluded.includes(p.id)}
+                      data-piece={p.id}
+                      onChange={() => togglePiece(p.id)}
+                    />
+                    {p.name}
+                  </label>
+                ))}
+              </div>
+              <p className="muted small">
+                La disposición es la de la vista Piezas; si las piezas no caben o se solapan, se
+                recolocan automáticamente.
+              </p>
+            </fieldset>
+
+            <fieldset>
               <legend>Capas</legend>
               <div className="export-layers">
                 {EXPORT_LAYERS.map((l) => (
@@ -433,10 +458,12 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
 
           <div className="export-side">
             <div className="export-preview">
-              {doc && doc.pages.length > 0 ? (
+              {doc && doc.pages.length > 0 && !noPieces ? (
                 <PagesPreview doc={doc} />
               ) : (
-                <p className="muted small">Elige al menos una talla.</p>
+                <p className="muted small">
+                  {noPieces ? 'Elige al menos una pieza.' : 'Elige al menos una talla.'}
+                </p>
               )}
             </div>
             {doc && (
@@ -465,7 +492,7 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
           <button
             type="button"
             className="btn btn-outline"
-            disabled={!source}
+            disabled={!source || noPieces}
             onClick={send}
             title="Envía el PDF de hoja única a a0-to-domestic para imprimirlo en A4/Carta"
           >
@@ -474,7 +501,7 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
           <button
             type="button"
             className="btn btn-primary"
-            disabled={!source || busy}
+            disabled={!source || noPieces || busy}
             onClick={download}
           >
             <Download size={16} /> Descargar

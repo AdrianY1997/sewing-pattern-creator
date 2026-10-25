@@ -12,6 +12,7 @@ import { useEditorStore } from '../store/editorStore'
 import { ProjectsDialog } from '../panels/ProjectsDialog'
 import { initProjects } from '../store/projectManager'
 import { NavRail } from './NavRail'
+import { Notices } from './Notices'
 import { TopBar } from './TopBar'
 
 const isEditable = (t: EventTarget | null): boolean =>
@@ -73,6 +74,7 @@ export function Editor() {
       )}
       {calibrationOpen && <CalibrationDialog />}
       {projectsOpen && <ProjectsDialog />}
+      <Notices />
     </div>
   )
 }

@@ -621,6 +621,13 @@ function patternsOf(src: ExportSource): { sizes: SizeSource[]; extracted: boolea
   }
 }
 
+/** The pieces an export can contain (extracted ones, else all of them), from the reference size. */
+export function exportPieces(src: ExportSource): { id: string; name: string }[] {
+  const { sizes } = patternsOf(src)
+  const ref = sizes.find((s) => s.id === src.referenceSize) ?? sizes[0]
+  return ref ? ref.pattern.pieces.map((p) => ({ id: p.id, name: p.name })) : []
+}
+
 const sizesLabel = (labels: readonly string[]) =>
   labels.length === 1 ? `Talla ${labels[0]}` : `Tallas ${labels.join(' · ')}`
 
@@ -685,7 +692,15 @@ export function buildRenderModel(
   src: ExportSource,
   options: ExportOptions,
 ): RenderModel & { readonly buckets: readonly (readonly LayoutItem[])[] } {
-  const { sizes, extracted } = patternsOf(src)
+  const patterns = patternsOf(src)
+  const { extracted } = patterns
+  const skip = new Set(options.excludedPieces ?? [])
+  const sizes = skip.size
+    ? patterns.sizes.map((s) => ({
+        ...s,
+        pattern: { ...s.pattern, pieces: s.pattern.pieces.filter((p) => !skip.has(p.id)) },
+      }))
+    : patterns.sizes
   const nested = !options.pagePerSize && sizes.length > 1
   const styles = sizeStyles(sizes, nested)
   const ctxFor = (i: number, primary: boolean, labelSizes: string): PieceRenderContext => ({

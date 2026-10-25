@@ -49,7 +49,11 @@ export type A0tdStatus =
   | { readonly state: 'sent'; readonly requestId: string }
   | { readonly state: 'ok'; readonly documentId: string }
   | { readonly state: 'error'; readonly code: string; readonly message: string }
-  | { readonly state: 'fallback'; readonly reason: 'blocked' | 'timeout'; readonly url: string }
+  | {
+      readonly state: 'fallback'
+      readonly reason: 'blocked' | 'timeout' | 'invalid-url'
+      readonly url: string
+    }
 
 export interface A0tdImportMessage {
   readonly type: 'a0td:import'
@@ -90,11 +94,22 @@ const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object
  */
 export function sendToA0td(opts: SendOptions): () => void {
   const win = opts.win ?? window
-  const base = opts.baseUrl ?? a0tdBaseUrl()
-  const origin = new URL(base).origin
-  const popup = win.open(a0tdImportUrl(base), '_blank')
+  let base = opts.baseUrl ?? a0tdBaseUrl()
+  let origin = ''
+  let importUrl = ''
+  let invalidUrl = false
+  try {
+    origin = new URL(base).origin
+    importUrl = a0tdImportUrl(base)
+    if (origin === 'null') throw new TypeError('opaque origin')
+  } catch {
+    // A malformed VITE_A0TD_URL must not break the click: fall back to the download.
+    invalidUrl = true
+    base = A0TD_DEFAULT_URL
+  }
+  const popup = invalidUrl ? null : win.open(importUrl, '_blank')
 
-  const fallback = (reason: 'blocked' | 'timeout') => {
+  const fallback = (reason: 'blocked' | 'timeout' | 'invalid-url') => {
     opts.file.then(
       (f) => {
         opts.download(f)
@@ -109,7 +124,7 @@ export function sendToA0td(opts: SendOptions): () => void {
     )
   }
   if (!popup) {
-    fallback('blocked')
+    fallback(invalidUrl ? 'invalid-url' : 'blocked')
     return () => {}
   }
 

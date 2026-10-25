@@ -9,6 +9,7 @@ import {
   deleteProject,
   getLastProjectId,
   getProject,
+  isDeletedProject,
   listProjects,
   migrateLegacySave,
   putProject,
@@ -21,6 +22,7 @@ import {
   serializeProject,
   type ProjectRecord,
 } from './projects'
+import { dismissNotice, pushNotice } from './notices'
 import { selectSnapshot, useEditorStore, type ProjectSnapshot } from './editorStore'
 
 export const useSaveStatus = create<{ status: SaveStatus }>(() => ({ status: 'idle' }))
@@ -34,21 +36,37 @@ export const snapshotChanged = (a: ProjectSnapshot, b: ProjectSnapshot): boolean
 
 let autosaver: Autosaver | null = null
 let createdAt = new Date().toISOString()
+/** Stored operations of the open project that did not validate: kept, not replayed. */
+let quarantined: readonly unknown[] = []
+let quarantineNotice: number | null = null
 
-/** Write the current editor state to its project. */
-const saveCurrent = async (): Promise<void> => {
+/** Remember the invalid operations of the project being opened and warn about them. */
+const setQuarantine = (ops: readonly unknown[] | undefined): void => {
+  if (quarantineNotice !== null) dismissNotice(quarantineNotice)
+  quarantineNotice = null
+  quarantined = ops ?? []
+  if (quarantined.length > 0)
+    quarantineNotice = pushNotice(
+      'warn',
+      `${quarantined.length} ${quarantined.length === 1 ? 'operación no válida se ignoró' : 'operaciones no válidas se ignoraron'}. Siguen guardadas en el proyecto, pero no se aplican.`,
+      0,
+    )
+}
+
+/** Write the editor state the autosaver captured (`snap`) to the open project. */
+const saveCurrent = async (snap: ProjectSnapshot): Promise<void> => {
   const id = store().projectId
-  if (id === null) return
-  const snap = selectSnapshot(store())
+  if (id === null || isDeletedProject(id)) return
   const saved = await putProject({
     ...snap,
     id,
-    schemaVersion: 1,
+    schemaVersion: SCHEMA_VERSION,
     system: store().system,
     createdAt,
     updatedAt: new Date().toISOString(),
+    ...(quarantined.length > 0 && { quarantinedOps: quarantined }),
   })
-  await setLastProjectId(saved.id)
+  if (!isDeletedProject(saved.id)) await setLastProjectId(saved.id)
 }
 
 /** Put a stored project in the editor (autosave paused so that loading is not a change). */
@@ -57,6 +75,7 @@ const load = (p: ProjectRecord): void => {
   store().loadSnapshot(p)
   store().setProjectId(p.id)
   createdAt = p.createdAt
+  setQuarantine(p.quarantinedOps)
   autosaver?.resume()
   setStatus('saved')
   void setLastProjectId(p.id).catch(() => undefined)
@@ -87,6 +106,7 @@ const start = async (): Promise<void> => {
       project = await createProject(adopted)
       store().setProjectId(project.id)
       createdAt = project.createdAt
+      setQuarantine(undefined)
       void setLastProjectId(project.id).catch(() => undefined)
       setStatus('saved')
     } else load(project)
@@ -142,6 +162,7 @@ export const newProject = async (): Promise<void> => {
   const now = new Date().toISOString()
   store().setProjectId(id)
   createdAt = now
+  setQuarantine(undefined)
   autosaver?.resume()
   await putProject({
     ...selectSnapshot(store()),
@@ -157,7 +178,10 @@ export const newProject = async (): Promise<void> => {
 
 export const removeProject = async (id: string): Promise<void> => {
   const isCurrent = id === store().projectId
-  if (isCurrent) autosaver?.pause() // do not resurrect it
+  if (isCurrent) {
+    autosaver?.pause() // do not resurrect it
+    store().setProjectId(null) // a save still in flight finds no project (and the db drops it)
+  }
   await deleteProject(id)
   if (!isCurrent) return
   const next = (await listProjects())[0]

@@ -212,6 +212,42 @@ describe('autosave', () => {
     expect(statuses.at(-1)).toBe('error')
   })
 
+  it('an undo back to the baseline during an in-flight save is saved afterwards', async () => {
+    let value = 0
+    const listeners = new Set<() => void>()
+    let db = 0
+    const releases: (() => void)[] = []
+    const saver = createAutosaver({
+      subscribe: (l) => (listeners.add(l), () => listeners.delete(l)),
+      read: () => value,
+      changed: (a, b) => a !== b,
+      save: (v) =>
+        new Promise<void>((resolve) => {
+          releases.push(() => {
+            db = v // the value passed in, as the manager now saves it
+            resolve()
+          })
+        }),
+    })
+    const change = (v: number) => {
+      value = v
+      listeners.forEach((l) => l())
+    }
+    change(1)
+    await vi.advanceTimersByTimeAsync(AUTOSAVE_DELAY_MS) // save(1) starts and stays in flight
+    expect(releases).toHaveLength(1)
+    change(0) // undo back to the baseline while it is in flight
+    releases[0]()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(db).toBe(1)
+    await vi.advanceTimersByTimeAsync(AUTOSAVE_DELAY_MS)
+    expect(releases).toHaveLength(2)
+    releases[1]()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(db).toBe(0)
+    expect(saver.isDirty()).toBe(false)
+  })
+
   it('watches the persisted fields of the editor store', () => {
     st().reset()
     const base = selectSnapshot(st())

@@ -229,16 +229,22 @@ export const newOpId = (): string =>
  * Keep only well-formed operations from a stored project: each type's parameters are validated,
  * the rest are dropped with a console.warn (replay reports operations that do not apply).
  */
-export const sanitizeOperations = (v: unknown): Operation[] => {
-  if (!Array.isArray(v)) return []
-  const out: Operation[] = []
+export const partitionOperations = (v: unknown): { valid: Operation[]; invalid: unknown[] } => {
+  const valid: Operation[] = []
+  const invalid: unknown[] = []
+  if (!Array.isArray(v)) return { valid, invalid }
   for (const o of v as unknown[]) {
     const problem = operationProblem(o)
-    if (problem === null) out.push(o as Operation)
-    else console.warn(`Operación descartada al cargar el proyecto: ${problem}`, o)
+    if (problem === null) valid.push(o as Operation)
+    else {
+      invalid.push(o)
+      console.warn(`Operación descartada al cargar el proyecto: ${problem}`, o)
+    }
   }
-  return out
+  return { valid, invalid }
 }
+
+export const sanitizeOperations = (v: unknown): Operation[] => partitionOperations(v).valid
 
 /** Layer visibility from a stored project: unknown or non-boolean entries use the defaults. */
 export const sanitizeLayers = (v: unknown): LayerVisibility => {

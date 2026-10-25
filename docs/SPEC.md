@@ -224,9 +224,9 @@ Cada regla es un contorno cerrado (cuerpo) más sus **bordes de trabajo**: curva
   - A0 (841 × 1189 mm), varias hojas A0 si no cabe.
   - Hoja única a tamaño real (página = caja delimitadora + margen), para plóter/copistería.
 - Cada exporte lleva un cuadrado de prueba de 10 × 10 cm.
-- Selección de piezas, tallas y capas (márgenes, marcas, construcción) a exportar.
+- Selección de piezas (casillas, todas marcadas por defecto), tallas y capas (márgenes, marcas, construcción) a exportar.
 - SVG con unidades en mm.
-- Disposición automática simple (colocación de piezas sin solaparse) con ajuste manual.
+- Disposición: la de la vista Piezas, o la automática (colocación sin solapes) si no cabe; el ajuste manual se hace en la vista Piezas, no en el diálogo.
 - Enviar a a0-to-domestic para mosaico doméstico (ver docs/integrations/a0-to-domestic.md)
 - No hay exportación en mosaico (A4/Carta): de eso se encarga a0-to-domestic.
 
@@ -238,7 +238,7 @@ Cada regla es un contorno cerrado (cuerpo) más sus **bordes de trabajo**: curva
 - **PDF (pdf-lib)**: vectorial, 1 mm = 72/25.4 pt exactos, MediaBox = tamaño de página, Béziers como curvas PDF (`c`). Modo **A0** (841 × 1189 mm): si la disposición cabe en una hoja (vertical primero, si no apaisada) se usa tal cual; si no, las piezas se reparten hoja a hoja sin cortar ninguna (cada hoja con la orientación en la que caben más); una pieza mayor que un A0 en ambas orientaciones va sola en una página de su tamaño, con aviso. Modo **hoja única**: página = caja de la disposición (incluido el bloque inferior) + 10 mm de margen.
 - **Cada página** lleva, en una franja inferior de 112 mm: cuadrado de prueba de 100 × 100 mm (escrito como rectángulo exacto `re` dentro de `/TestSquare BMC … EMC`) con «10 cm — comprobar escala al 100 %», cajetín (título, tallas, fecha, «Escala 1:1…», URL de la app), número de página «Página i de n» y, con tallas anidadas, la leyenda de colores.
 - **SVG**: `width`/`height` en mm y `viewBox` en mm (1 unidad = 1 mm), grupos `<g id="piece-<id>">` → `piece-<id>-<capa>` → `…-t<talla>`, estilos en línea; hoja única o hojas A0; un archivo por página.
-- **Diálogo Exportar**: formato (PDF A0 / PDF hoja única / SVG, este con hoja única o A0), tallas (varias; por defecto la actual), anidadas o una página por talla, capas, línea de corte continua/discontinua, trazo de construcción, nombre de archivo (`<titulo>-talla-<x>`), vista previa de las páginas con su contorno y avisos; **Descargar** y **Enviar a a0-to-domestic** (siempre el PDF de hoja única, una página por talla; URL de destino `VITE_A0TD_URL`, por defecto https://adriany1997.github.io/a0-to-domestic/; protocolo v1 exacto, ver la integración).
+- **Diálogo Exportar**: formato (PDF A0 / PDF hoja única / SVG, este con hoja única o A0), tallas (varias; por defecto la actual), anidadas o una página por talla, piezas (lista de casillas; las desmarcadas no se exportan y la disposición se toma de la vista Piezas o de la automática), capas, línea de corte continua/discontinua, trazo de construcción, nombre de archivo (`<titulo>-talla-<x>`), vista previa de las páginas con su contorno y avisos; **Descargar** y **Enviar a a0-to-domestic** (la transferencia sigue aunque se cierre el diálogo y avisa con un aviso emergente; siempre el PDF de hoja única, una página por talla; URL de destino `VITE_A0TD_URL`, por defecto https://adriany1997.github.io/a0-to-domestic/; protocolo v1 exacto, ver la integración).
 - La pestaña Medidas marca con un aviso las filas con irregularidad de escalado (`findGradingIrregularities`), con el detalle de los saltos en el texto emergente.
 
 ## 10. Persistencia
@@ -265,9 +265,9 @@ Cada regla es un contorno cerrado (cuerpo) más sus **bordes de trabajo**: curva
 - Layout y estilo según docs/UI.md (referencia: docs/example-layout.png)
 - **F3:** Resto de bloques (manga, falda, pantalón mujer, bloques hombre, pantalón hombre).
 - **F4:** Operaciones de edición (separar, espejar, pinzas, márgenes, marcas, deshacer).
-- **F5:** Reglas de patronaje a tamaño real.
+- **F5:** Reglas de patronaje a tamaño real; F5b: trazado de curvas sobre varias aristas y reglas con alineación automática.
 - **F6:** Exportación (PDF A0 / hoja única, SVG), integración a0-to-domestic.
-- **F7:** Escalado anidado y reproducción de operaciones entre tallas.
+- **F7:** Persistencia de proyectos (IndexedDB, autoguardado, `.json`). El escalado anidado y la reproducción entre tallas se entregaron dentro de F4/F6.
 - **v2:** DXF-AAMA, transformaciones (desplazar y abrir), app de escritorio (Tauri) si hace falta acceso a plóter.
 
 ## 13. Fuera de alcance v1
